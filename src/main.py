@@ -4,6 +4,8 @@ import os
 import re
 import getpass
 
+TEMPLATE_FILE_NAME = "test/TEMPLATE.xlsx"
+SOURCE_PATH = "test/"
 # passwords perdata and saldata 
 
 ERROR_SUCCESS = 0
@@ -64,13 +66,28 @@ def removeTempFiles(fileList):
             errorCount = errorCount + 1
     return errorCount
 
+#Template column defs
+TEMP_COL_INDEX = 0
+TEMP_COL_NAME = 1
+TEMP_COL_CONTENT = 2
+TEMP_COL_LOC_X = 3
+TEMP_COL_LOC_Y = 4
+#Data content defs
+TEMP_DATA_TYPE = 0
+TEMP_DATA_FILE_NAME = 1
+TEMP_DATA_IMD_TEXT = 1
+TEMP_DATA_FILE_LOCKED = 2
+TEMP_DATA_FILE_SHEET = 3
+TEMP_DATA_FILE_COL_KEY = 4
+TEMP_DATA_FILE_COL_DATA = 5
+
 # Read template file, and load the data 
 def loadTemplateData(templateFile,sheetName):
     # variable to return data
     textOverlayList = [] 
     #check if the file path is valid
     if( not os.path.exists(templateFile)):
-        print("Tempate file not found")
+        print("Error: Tempate file not found")
         return textOverlayList # error - empty
     #open template file, and load the sheet
     templateBook = openpyxl.load_workbook(templateFile)
@@ -78,31 +95,51 @@ def loadTemplateData(templateFile,sheetName):
     print("Debug:",textOverlayDataSheet.dimensions, textOverlayDataSheet.max_row, textOverlayDataSheet.max_column)
     #go through every text overlay item
     for overlays in textOverlayDataSheet.rows:
+        #Get the index to a string. 
+        rowIndex = str(overlays[TEMP_COL_INDEX].value)
         # stop if we reach an empty cell
-        if(None == overlays[0].value):
+        if(None == rowIndex):
             break
-        # the cordinates has to be always numbers, skip others
-        if(not (isinstance(overlays[2].value,int) and isinstance(overlays[3].value,int))):
-            print("Warning: skip Row ID ", overlays[0].value)
+        # the index has to be always numbers, skip others
+        if( not rowIndex.isdigit()):
+            print("Warning: skip Row Index : ", rowIndex)
             continue
-        dataString = str(overlays[4].value)
+        dataString = str(overlays[TEMP_COL_CONTENT].value)
         #user initiated end of loop.
         if("None" == dataString):
+            print("Warning: User terminated at Index : ", rowIndex)
             break
-        if(dataString.startswith('!<') and dataString.endswith('>') and len(dataString) > 3):
-            #process the file data. Get all the data points to a list
-            fileData = re.findall(r'<(.*?)>',dataString)
-            #check the item 2, File locked
-            isFileLocked = False
-            if fileData[1] == "LOCKED=1":
-                isFileLocked = True
-            #save the extended data
-            textOverlayList.append({"name": overlays[1].value, 
-                                    "text":{ "string": None, "x": overlays[2].value, "y": overlays[3].value},
-                                    "file" : {"name": fileData[0], "isLocked": isFileLocked, "sheet": fileData[2], "primeryKey": fileData[3], "value": fileData[4]}})
-        else:
+        if(not (dataString.startswith('<') and dataString.endswith('>') and len(dataString) > 3)):
+            print("Error: Data Error at Index : ",rowIndex)
+            break
+        #process the file data. Get all the data points to a list
+        data = re.findall(r'<(.*?)>',dataString)
+        #check the item 2, File locked
+        if "!T" == data[TEMP_DATA_TYPE]:
+            print("text")
             #Save notmal text data
-            textOverlayList.append({"name": overlays[1].value, "text":{ "string": dataString, "x": overlays[2].value, "y": overlays[3].value}})
+            textOverlayList.append({"name": overlays[TEMP_COL_NAME].value, 
+                                    "text":{ "string": data[TEMP_DATA_IMD_TEXT], 
+                                            "x": overlays[TEMP_COL_LOC_X].value, 
+                                            "y": overlays[TEMP_COL_LOC_Y].value}})
+        elif "!F" == data[0]:
+            print("file named : ",data[TEMP_DATA_FILE_NAME])
+            isFileLocked = False
+            if data[TEMP_DATA_FILE_LOCKED] == "LOCKED=1":
+                isFileLocked = True
+                #save the extended data
+                textOverlayList.append({"name": overlays[TEMP_COL_NAME].value, 
+                                        "text":{ "string": None, 
+                                                "x": overlays[TEMP_COL_LOC_X].value, 
+                                                "y": overlays[TEMP_COL_LOC_Y].value},
+                                        "file" : {"name": data[TEMP_DATA_FILE_NAME], 
+                                                  "isLocked": isFileLocked, 
+                                                  "sheet": data[TEMP_DATA_FILE_SHEET], 
+                                                  "primeryKey": data[TEMP_DATA_FILE_COL_KEY], 
+                                                  "value": data[TEMP_DATA_FILE_COL_DATA]}})
+        else:
+            print("Error: undefined overlay type : ", data[0])
+            break
     # Data store is done. return
     print("Fn: loadTemplateData")
     return textOverlayList
@@ -156,7 +193,7 @@ def getOverlayData(overlayLineInformation, tempFileList):
 # main program
 
 #load the template
-textOverlayList =  loadTemplateData("TEMPLATE.xlsx","Overlay")
+textOverlayList =  loadTemplateData(TEMPLATE_FILE_NAME,"Overlay")
 
 #get the locked files to be used as source 
 lockedSourceFileList = getLockedFileList(textOverlayList)
