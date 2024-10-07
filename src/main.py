@@ -26,29 +26,6 @@ def createTempDataFile(sourceFile, password, tempFile):
             office_file.decrypt(decrypted_file)
     return ERROR_SUCCESS
 
-# create temp data files from source. The file list has
-# source, password and temp file names. Will return temp 
-# file list. If any file does not need a password, use False
-def createTempDataFiles(FileList):
-    print("Fn: createTempDataFile")
-    # variable to return the saved file list.
-    fileMap = []
-    for currentFile in FileList:
-        # Open the protected file using msoffcrypto
-        # NO error handling <todo>
-        # files without a password, not implemented. <todo> 
-        with open(currentFile["source"], 'rb') as file:
-            office_file = msoffcrypto.OfficeFile(file)
-            office_file.load_key(password=currentFile["password"])  # Provide the password
-            # Decrypt the file and save it as a temporary file
-            with open(currentFile["destination"], 'wb') as decrypted_file:
-                office_file.decrypt(decrypted_file)
-        # add the created file name to the fileMap 
-        fileData = {"source": currentFile["source"], "destination": currentFile["tempFileName"]}
-        fileMap.append(fileData)
-    #return the list of converted files.
-    return fileMap
-
 # Remove temp files.
 # the file list is a python dict, that has two elememnts.
 # name: string delete: True/False
@@ -144,50 +121,22 @@ def loadTemplateData(templateFile,sheetName):
     print("Fn: loadTemplateData")
     return textOverlayList
 
-# Get the list of locked source files from text overlay list
-def getLockedFileList(textOverlayList):
+def getFileList(textOverlayList):
     fileNameList = []
     #go through each overlay
     for testOverlay in textOverlayList:
-        text = testOverlay["text"]
-        textString = text["string"]
-        # Check if this is a direct text
-        if textString == None:
-            #indirect text, taken from a different file
-            fileData = testOverlay["file"]
-            fileName = fileData["name"]
-            isFileLocked = fileData["isLocked"]
-            print ((fileName not in fileNameList),isFileLocked, ((fileName not in fileNameList) and isFileLocked))
-            if ((fileName not in fileNameList) and isFileLocked):
-                fileNameList.append(fileName)
+        if "file" in testOverlay:
+            filedata = testOverlay["file"]
+            filename = filedata["name"]
+            print("There is a file ", filename)
+            if filename not in fileNameList:
+                fileNameList.append(filename)
     return fileNameList
 
 
-def OpenAllDataFiles(overlayDataList, tempFileList):
+def OpenAllDataFiles(overlayDataList):
     dataFileList =[]
-    for overlayData in overlayDataList:
-        print(overlayData["name"])
-        overlayText = overlayData["text"]
-        if(None == overlayText["string"]):
-            #this is a file
-            file = overlayData["file"]
-            fileName = file["name"]
-            #check if this is a loacked file
-            if not file["isLocked"]:
-                print("Open File",fileName)
-                dataFileList.append({"sourceFileName": fileName, "fileObject": None})
-            else:
-                #open the temp file
-                for tempFile in tempFileList:
-                    if tempFile["source"] == fileName:
-                        print ("OpenF Temp File",tempFile["tempFileName"])
-                        dataFileList.append({"sourceFileName": fileName, "fileObject": None})
     return dataFileList
-
-def getOverlayData(overlayLineInformation, tempFileList):
-    OverlayData = []
-    OverlayData.append({"string": "Test String", "x": 100, "y": 250 })
-    return OverlayData
 
 
 # main program
@@ -196,42 +145,5 @@ def getOverlayData(overlayLineInformation, tempFileList):
 textOverlayList =  loadTemplateData(TEMPLATE_FILE_NAME,"Overlay")
 
 #get the locked files to be used as source 
-lockedSourceFileList = getLockedFileList(textOverlayList)
+SourceFileList = getFileList(textOverlayList)
 
-#create temp files for locked files
-tempFileList = []
-for lockedSourceFile in lockedSourceFileList:
-    tempFileIndex = 1
-    SourceFileName = lockedSourceFile
-    TempFileName = "~temp~" + str(tempFileIndex) + ".xlsx"
-    # Prompt the user for a password and store it in a variable
-    password = getpass.getpass("Enter password for "+ SourceFileName + ": ")
-    if ERROR_SUCCESS == createTempDataFile(SourceFileName,password,TempFileName):
-        tempFileList.append({"source": SourceFileName, "tempFileName": TempFileName})
-
-print(tempFileList)
-
-dataFilesList = OpenAllDataFiles(textOverlayList,tempFileList)
-
-for dataFile in dataFilesList:
-    print(dataFile["sourceFileName"])
-
-for overlayData in textOverlayList:
-    getOverlayData(overlayData,dataFilesList)
-
-# Open temp files and read
-for tempFile in tempFileList:
-    print ("Open temp file", tempFile["tempFileName"])
-    workbook = openpyxl.load_workbook(tempFile["tempFileName"])
-    #open active sheet
-    sheet = workbook.active
-    # Read the value from cell B6
-    cell_value = sheet['B6'].value
-    print(f"The value in B6 is: {cell_value}")
-
-deleteFileList = []
-for tempFile in tempFileList:
-    deleteFileList.append({"name": tempFile["tempFileName"], "delete": True})
-
-errorCount = removeTempFiles(deleteFileList)
-print("Error Count = ", errorCount)
