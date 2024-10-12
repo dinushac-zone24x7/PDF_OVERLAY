@@ -122,11 +122,12 @@ def loadRecordIdList(templateFileName):
     return recordIdList
 
 
-def openSourceFiles(fileList):
+def openSourceFiles(fileNameList):
     """DUMMY FUNC <TO DO>"""
-    print("+Fn openSourceFiles = DUMMY, PARAM = ", fileList)
+    print("+Fn openSourceFiles = DUMMY, PARAM = ", fileNameList)
     fileObjectList = []
-    fileObjectList.append({"name": "name", "object": None})
+    for fileName in fileNameList:
+        fileObjectList.append({"name": fileName, "object": None})
     return fileObjectList
 
 def unused():
