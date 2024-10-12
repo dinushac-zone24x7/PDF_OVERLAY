@@ -1,54 +1,56 @@
-import msoffcrypto
-import getpass
-from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList
-from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
-from constants.errorcodes import ERROR_SUCCESS, ERROR_FILE_NOT_FOUND, ERROR_TEMP_FILE_DELETE
+import threading
+import time
+from projectutils.guifunc import showStatus, getFileName, getPassword  # Import GUI functions
+from projectutils.guifunc import MESSAGE_QUIT, MESSAGE_NEW, MESSAGE_ADD, MESSAGE_CLEAR   # Import GUI constants
+from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList, openSourceFiles, loadRecordIdList
+from projectutils.businessfunc import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
 
-TEMPLATE_FILE_NAME = "test/TEMPLATE.xlsx"
-SOURCE_PATH = "test/"
+def update_message(message_holder, action, message, isResetId):
+    if isinstance(message, str):
+        print(message)
+    """Update the message in the holder (first element of the list)."""
+    if isResetId:
+        message_holder["id"] = 0
+    else:
+        message_holder["id"] = message_holder["id"] + 1
+    message_holder["action"] = action
+    message_holder["message"] = message
 
-# main program
+def processRecord(message_holder,FileNameList,recordID):
+    print("+Fn processRecord : ",recordID, FileNameList)
+    """Simulate background message changes."""
+    update_message(message_holder, MESSAGE_NEW, "Status updated: Start...",False)
+    time.sleep(2)
+    update_message(message_holder, MESSAGE_ADD, "Status updated: Processing...",False)
+    time.sleep(1)
+    update_message(message_holder, MESSAGE_ADD, "Status updated: Almost done...",False)
+    time.sleep(1)
+    update_message(message_holder, MESSAGE_QUIT, None,False)  # This should close the status window
 
-#load the template
-textOverlayList =  loadTemplateData(TEMPLATE_FILE_NAME,"Overlay")
+def main():
+    #get the template file name
+    templateFileName = None
+    templateFileName = getFileName(TEMPLATE_FOLDER_NAME)
+    #get Recoed ID list
+    recordIDList = loadRecordIdList(templateFileName)
+    #get the overlay list
+    #textOverlayList = loadTemplateData(templateFileName,TEMPLATE_SHEET_NAME)
+    #get the file list
+    #fileNameList = getFilesFromOverlayList(textOverlayList)
+    #get File Object list
+    #fileObjectList = openSourceFiles(fileNameList)
+    fileObjectList = []
 
-#get the files to be used as source 
-SourceFileList = getFilesFromOverlayList(textOverlayList)
-print(SourceFileList)
+    for recordId in recordIDList:
+        message_holder = {"id": 0, "action": MESSAGE_CLEAR, "message": None}
+        #update_message(message_holder,MESSAGE_NEW,templateFileName,True)
+        windowName = "Status of Record ID = [" + str(recordId) + "]"
+        # Start a background thread to simulate message updates
+        thread = threading.Thread(target=processRecord, args=(message_holder,fileObjectList,recordId,))
+        thread.daemon = True  # Daemon thread will close with the main program
+        thread.start()
+        # Run the Tkinter GUI (must run in the main thread)
+        showStatus(message_holder, windowName)
 
-#open the files
-fileModule = []
-tempFileList = []
-fileObject = None
-
-for sourceFile in SourceFileList:
-    tempFileIndex = 1
-    sourceFileFullPath = SOURCE_PATH+sourceFile
-    try:
-        with open (sourceFileFullPath, 'rb') as currentFile:
-            office_file = msoffcrypto.OfficeFile(currentFile)
-            if office_file.is_encrypted():
-                print("Fn Main: File Encrypted.")
-                #get the password
-                password = getpass.getpass("Enter password for "+ sourceFile + ": ")
-                tempFileFullPath = SOURCE_PATH+"~temp~"+str(tempFileIndex)+".xlsx"
-                tempFileIndex = tempFileIndex + 1
-                #create a temp file
-                if( ERROR_SUCCESS != createTempFile(sourceFileFullPath,password,tempFileFullPath)):
-                    print("Fn: Main Error exit")
-                    exit(ERROR_FILE_NOT_FOUND)
-                #add the file name to temp file list.
-                tempFileList.append({"name":tempFileFullPath, "delete": True})
-                fileObject = openExcelFile(tempFileFullPath)
-            else:
-                fileObject = openExcelFile(sourceFileFullPath)
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    #add the file object to the list
-    fileModule.append({"name": sourceFile, "fileObject": fileObject})
-
-print(tempFileList)
-if(0 != removeFiles(tempFileList)):
-    exit(ERROR_TEMP_FILE_DELETE)
-else:
-    exit(ERROR_SUCCESS)
+if __name__ == "__main__":
+    main()
