@@ -4,7 +4,10 @@ from tkinter import filedialog, simpledialog
 MESSAGE_NEW = 1
 MESSAGE_ADD = 2
 MESSAGE_CLEAR = 3
-MESSAGE_QUIT = 0
+WINDOW_QUIT = 0
+GET_PASSWORD = 4
+WAIT_FOR_PASSWORD = 5
+RETURN_PASSWORD = 6
 
 
 def getFileName(initDir):
@@ -40,22 +43,39 @@ def getPassword(fileName):
     return password
 
 def showStatus(message_holder, windowName):
-    """Pop up a GUI with a read-only text box displaying the message."""
+    """Pop up a GUI with a read-only text box displaying the message."""    
     lastAction = str(None)
-    def update_textbox():
+    def messageProcesser():
         """Update the text box with the latest value of the message."""
         nonlocal root, text_box, lastAction
         messageId = message_holder["id"]
         action = message_holder["action"]
         message = message_holder["message"]  # Access the first element of the list
         if(lastAction == str(messageId) + str(message) + str(action)):
-            root.after(500, update_textbox)  # Call this function again after 1 second (1000 ms)
+            #no update, just loop.
+            root.after(500, messageProcesser) 
             return
         lastAction = str(messageId) + str(message) + str(action)
-        if action == MESSAGE_QUIT:
-            root.destroy() # Close the window 
+        if action == WINDOW_QUIT:
+            # Close the window 
+            root.destroy() 
             # root.quit()  
             return
+        if(action == GET_PASSWORD):
+            message_holder["action"] = WAIT_FOR_PASSWORD
+            fileName = "BIG FILE"
+            message_holder["message"] = simpledialog.askstring(
+                title="Password Required", 
+                prompt=f"Enter password for {fileName}:", 
+                show="*"
+            )
+            message_holder["action"] = RETURN_PASSWORD
+            root.after(500, messageProcesser) 
+            return
+        if (action == RETURN_PASSWORD or action == WAIT_FOR_PASSWORD):
+            root.after(500, messageProcesser) 
+            return
+        #It is a message process
         text_box.config(state=tk.NORMAL)  # Make text box editable to update content
         if (action == MESSAGE_NEW or action == MESSAGE_CLEAR):
             text_box.delete(1.0, tk.END)      # Clear the current content
@@ -66,7 +86,7 @@ def showStatus(message_holder, windowName):
         else:
             print("Message box = Clear")
         text_box.config(state=tk.DISABLED)  # Make text box read-only again
-        root.after(500, update_textbox)  # Call this function again after 1 second (1000 ms)
+        root.after(500, messageProcesser)  # Call this function again after 1 second (1000 ms)
 
     # Create the main window
     root = tk.Tk()
@@ -88,7 +108,7 @@ def showStatus(message_holder, windowName):
     text_box.config(state=tk.DISABLED)
 
     # Start updating the text box with the current value of the message
-    update_textbox()
+    messageProcesser()
 
     # Start the Tkinter event loop
     root.mainloop()

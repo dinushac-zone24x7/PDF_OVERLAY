@@ -13,13 +13,13 @@ TEMPLATE_FOLDER_NAME = "/Users/vipula/Documents/GitHub/PDF_OVERLAY/test/"
 SOURCE_PATH = "test/"
 TEMPLATE_SHEET_NAME = "Overlay"
 RECORD_LIST_SHEET_NAME = "Data"
-#Template column defs
+#Template column defs for overlays
 TEMP_COL_INDEX = 0
 TEMP_COL_NAME = 1
 TEMP_COL_CONTENT = 2
 TEMP_COL_LOC_X = 3
 TEMP_COL_LOC_Y = 4
-#Data content defs
+#Data content defs for overlays
 TEMP_DATA_TYPE = 0
 TEMP_DATA_FILE_NAME = 1
 TEMP_DATA_IMD_TEXT = 1
@@ -27,6 +27,12 @@ TEMP_DATA_FILE_LOCKED = 2
 TEMP_DATA_FILE_SHEET = 3
 TEMP_DATA_FILE_COL_KEY = 4
 TEMP_DATA_FILE_COL_DATA = 5
+#Template column defs for record IDs
+REC_COL_INDEX = 0
+REC_COL_KEY = 1 #Prinery Key
+REC_COL_STR_ID = 2 #name
+
+
 
 def loadTemplateData(templateFile,sheetName):
     """ Reads the text overlays from the template file.
@@ -115,10 +121,40 @@ def getFilesFromOverlayList(textOverlayList):
     return fileNameList
 
 
-def loadRecordIdList(templateFileName):
-    """DUMMY FUNC <TO DO>"""
-    print("+Fn loadRecordIdList = DUMMY, PARAM = ", templateFileName)
-    recordIdList = [10,23,35,135]
+def loadRecordIdList(templateFile,sheetName):
+    """ loadRecordIdList """
+    print("+ Fn: loadRecordIdList")
+    # variable to return data
+    recordIdList = [] 
+    #check if the file path is valid
+    if( not os.path.exists(templateFile)):
+        print("Error [loadTemplateData]: Tempate file not found")
+        return recordIdList # error - empty
+    #open template file, and load the sheet
+    templateBook = openpyxl.load_workbook(templateFile)
+    recordIdDataSheet = templateBook[sheetName]
+    print("Debug [loadTemplateData]: Sheet Size",recordIdDataSheet.dimensions, recordIdDataSheet.max_row, " Rows ", recordIdDataSheet.max_column, " columns")
+    #go through every text overlay item
+    for record in recordIdDataSheet.rows:
+        #Get the index to a string. Empty cells will be string "None"
+        rowIndex = str(record[REC_COL_INDEX].value)
+        print(rowIndex)
+        # stop if we reach an empty cell
+        if("None" == rowIndex):
+            break
+        # the index has to be always numbers, skip others
+        if( not rowIndex.isdigit()):
+            print("Warning [loadTemplateData]: skip Row Index : ", rowIndex)
+            continue
+        primeryKey = str(record[REC_COL_KEY].value)
+        #user initiated end of loop.
+        if("None" == primeryKey):
+            print("Warning [loadTemplateData]: User terminated at Index : ", rowIndex)
+            break
+        if not primeryKey.isdigit():
+            print("Error [primeryKey]: Data Error at Index : ",rowIndex)
+            break
+        recordIdList.append({"key": int(primeryKey), "identifier": str(record[REC_COL_STR_ID].value)})
     return recordIdList
 
 
