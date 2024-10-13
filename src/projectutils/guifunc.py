@@ -10,14 +10,14 @@ WAIT_FOR_PASSWORD = 5
 RETURN_PASSWORD = 6
 
 
-def getFileName(initDir):
+def getExcelFileName(dialogTitle, initDir):
     # Create a root window (but hide it)
     root = tk.Tk()
     root.withdraw()  # Hide the root window
 
     # Open file dialog and allow user to select a file
     file_path = filedialog.askopenfilename(
-        title="Select the Excel Template", 
+        title=dialogTitle, 
         filetypes=[("Microsoft Excel file", "*.xlsx")],
         initialdir=initDir 
         )
@@ -62,17 +62,19 @@ def showStatus(message_holder, windowName):
             # root.quit()  
             return
         if(action == GET_PASSWORD):
+            #open the password dialog box
             message_holder["action"] = WAIT_FOR_PASSWORD
-            fileName = "BIG FILE"
             message_holder["message"] = simpledialog.askstring(
                 title="Password Required", 
-                prompt=f"Enter password for {fileName}:", 
+                prompt=f"{message}", 
                 show="*"
             )
+            #return the password
             message_holder["action"] = RETURN_PASSWORD
             root.after(500, messageProcesser) 
             return
         if (action == RETURN_PASSWORD or action == WAIT_FOR_PASSWORD):
+            #no action it we get here.
             root.after(500, messageProcesser) 
             return
         #It is a message process

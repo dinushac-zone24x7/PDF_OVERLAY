@@ -122,7 +122,7 @@ def getFilesFromOverlayList(textOverlayList):
 
 
 def loadRecordIdList(templateFile,sheetName):
-    """ loadRecordIdList """
+    """ loadRecordIdList: This will load the records to process """
     print("+ Fn: loadRecordIdList")
     # variable to return data
     recordIdList = [] 
@@ -159,11 +159,11 @@ def loadRecordIdList(templateFile,sheetName):
 
 
 def openSourceFiles(fileNameList):
-    """DUMMY FUNC <TO DO>"""
-    print("+Fn openSourceFiles = DUMMY, PARAM = ", fileNameList)
+    """openSourceFiles"""
+    print("+Fn openSourceFiles, PARAM = ", fileNameList)
     fileObjectList = []
     for fileName in fileNameList:
-        fileObjectList.append({"name": fileName, "object": None})
+        fileObjectList.append({"name": fileName, "object": None, "tempFile": None})
     return fileObjectList
 
 def unused():
