@@ -10,13 +10,29 @@ WAIT_FOR_PASSWORD = 5
 RETURN_PASSWORD = 6
 
 
+def getPdfFileName(dialogTitle, initDir):
+    # Create a root window (but hide it)
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+
+    # Open file dialog and allow user to select a file
+    filePath = filedialog.askopenfilename(
+        title=dialogTitle, 
+        filetypes=[("PDF file", "*.pdf")],
+        initialdir=initDir 
+        )
+    #destroy the window. (quit does not work here)
+    root.destroy()
+    # Return the file path selected by the user
+    return filePath
+
 def getExcelFileName(dialogTitle, initDir):
     # Create a root window (but hide it)
     root = tk.Tk()
     root.withdraw()  # Hide the root window
 
     # Open file dialog and allow user to select a file
-    file_path = filedialog.askopenfilename(
+    filePath = filedialog.askopenfilename(
         title=dialogTitle, 
         filetypes=[("Microsoft Excel file", "*.xlsx")],
         initialdir=initDir 
@@ -24,7 +40,7 @@ def getExcelFileName(dialogTitle, initDir):
     #destroy the window. (quit does not work here)
     root.destroy()
     # Return the file path selected by the user
-    return file_path
+    return filePath
 
 def getPassword(fileName):
     # Create the root window (but hide it)
@@ -42,15 +58,15 @@ def getPassword(fileName):
     # Return the password entered by the user
     return password
 
-def showStatus(message_holder, windowName):
+def showStatus(messageHolder, windowName):
     """Pop up a GUI with a read-only text box displaying the message."""    
     lastAction = str(None)
     def messageProcesser():
         """Update the text box with the latest value of the message."""
         nonlocal root, text_box, lastAction
-        messageId = message_holder["id"]
-        action = message_holder["action"]
-        message = message_holder["message"]  # Access the first element of the list
+        messageId = messageHolder["id"]
+        action = messageHolder["action"]
+        message = messageHolder["message"]  # Access the first element of the list
         if(lastAction == str(messageId) + str(message) + str(action)):
             #no update, just loop.
             root.after(500, messageProcesser) 
@@ -63,14 +79,14 @@ def showStatus(message_holder, windowName):
             return
         if(action == GET_PASSWORD):
             #open the password dialog box
-            message_holder["action"] = WAIT_FOR_PASSWORD
-            message_holder["message"] = simpledialog.askstring(
+            messageHolder["action"] = WAIT_FOR_PASSWORD
+            messageHolder["message"] = simpledialog.askstring(
                 title="Password Required", 
                 prompt=f"{message}", 
                 show="*"
             )
             #return the password
-            message_holder["action"] = RETURN_PASSWORD
+            messageHolder["action"] = RETURN_PASSWORD
             root.after(500, messageProcesser) 
             return
         if (action == RETURN_PASSWORD or action == WAIT_FOR_PASSWORD):

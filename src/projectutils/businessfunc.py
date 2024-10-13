@@ -2,8 +2,8 @@ import openpyxl
 import os
 import re
 
-from constants.errorcodes import ERROR_SUCCESS, ERROR_FILE_NOT_FOUND, ERROR_TEMP_FILE_DELETE
-from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
+from constants.errorcodes import ERROR_SUCCESS,ERROR_FILE_NOT_FOUND
+from projectutils.filefunc import openExcelFile, createTempFile
 
 import msoffcrypto
 import getpass
@@ -23,10 +23,10 @@ TEMP_COL_LOC_Y = 4
 TEMP_DATA_TYPE = 0
 TEMP_DATA_FILE_NAME = 1
 TEMP_DATA_IMD_TEXT = 1
-TEMP_DATA_FILE_LOCKED = 2
-TEMP_DATA_FILE_SHEET = 3
-TEMP_DATA_FILE_COL_KEY = 4
-TEMP_DATA_FILE_COL_DATA = 5
+#TEMP_DATA_FILE_LOCKED = 2
+TEMP_DATA_FILE_SHEET = 2
+TEMP_DATA_FILE_COL_KEY = 3
+TEMP_DATA_FILE_COL_DATA = 4
 #Template column defs for record IDs
 REC_COL_INDEX = 0
 REC_COL_KEY = 1 #Prinery Key
@@ -82,19 +82,18 @@ def loadTemplateData(templateFile,sheetName):
                                             "y": overlays[TEMP_COL_LOC_Y].value}})
         elif "!F" == data[0]:
             print(rowIndex, "overlay type > From file => ",data[TEMP_DATA_FILE_NAME])
-            isFileLocked = False
-            if data[TEMP_DATA_FILE_LOCKED] == "LOCKED=1":
-                isFileLocked = True
-                #save the extended data
-                textOverlayList.append({"name": overlays[TEMP_COL_NAME].value, 
-                                        "text":{ "string": None, 
-                                                "x": overlays[TEMP_COL_LOC_X].value, 
-                                                "y": overlays[TEMP_COL_LOC_Y].value},
-                                        "file" : {"name": data[TEMP_DATA_FILE_NAME], 
-                                                  "isLocked": isFileLocked, 
-                                                  "sheet": data[TEMP_DATA_FILE_SHEET], 
-                                                  "primeryKey": data[TEMP_DATA_FILE_COL_KEY], 
-                                                  "value": data[TEMP_DATA_FILE_COL_DATA]}})
+            #isFileLocked = False
+            #if data[TEMP_DATA_FILE_LOCKED] == "LOCKED=1":
+            #    isFileLocked = True
+            #save the extended data
+            textOverlayList.append({"name": overlays[TEMP_COL_NAME].value, 
+                                    "text":{ "string": None, 
+                                            "x": overlays[TEMP_COL_LOC_X].value, 
+                                            "y": overlays[TEMP_COL_LOC_Y].value},
+                                    "file" : {"name": data[TEMP_DATA_FILE_NAME], 
+                                                "sheet": data[TEMP_DATA_FILE_SHEET], 
+                                                "primeryKey": data[TEMP_DATA_FILE_COL_KEY], 
+                                                "value": data[TEMP_DATA_FILE_COL_DATA]}})
         else:
             print(rowIndex, "Error: undefined overlay type : ", data[0])
             break
@@ -165,40 +164,4 @@ def openSourceFiles(fileNameList):
     for fileName in fileNameList:
         fileObjectList.append({"name": fileName, "object": None, "tempFile": None})
     return fileObjectList
-
-def unused():
-    #get the files to be used as source 
-    SourceFileList = getFilesFromOverlayList(None)
-    print(SourceFileList)
-
-    #open the files
-    fileModule = []
-    tempFileList = []
-    fileObject = None
-
-    for sourceFile in SourceFileList:
-        tempFileIndex = 1
-        sourceFileFullPath = SOURCE_PATH+sourceFile
-        try:
-            with open (sourceFileFullPath, 'rb') as currentFile:
-                office_file = msoffcrypto.OfficeFile(currentFile)
-                if office_file.is_encrypted():
-                    print("Fn Main: File Encrypted.")
-                    #get the password
-                    password = getpass.getpass("Enter password for "+ sourceFile + ": ")
-                    tempFileFullPath = SOURCE_PATH+"~temp~"+str(tempFileIndex)+".xlsx"
-                    tempFileIndex = tempFileIndex + 1
-                    #create a temp file
-                    if( ERROR_SUCCESS != createTempFile(sourceFileFullPath,password,tempFileFullPath)):
-                        print("Fn: Main Error exit")
-                        exit(ERROR_FILE_NOT_FOUND)
-                    #add the file name to temp file list.
-                    tempFileList.append({"name":tempFileFullPath, "delete": True})
-                    fileObject = openExcelFile(tempFileFullPath)
-                else:
-                    fileObject = openExcelFile(sourceFileFullPath)
-        except Exception as e:
-            print(f"An error occurred: {e}")
-        #add the file object to the list
-        fileModule.append({"name": sourceFile, "fileObject": fileObject})
 

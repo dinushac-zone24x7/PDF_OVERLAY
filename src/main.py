@@ -1,6 +1,6 @@
 import threading
 import time
-from projectutils.guifunc import showStatus, getExcelFileName, getPassword  # Import GUI functions
+from projectutils.guifunc import showStatus, getExcelFileName, getPassword, getPdfFileName  # Import GUI functions
 from projectutils.guifunc import WINDOW_QUIT # Import GUI constants, Window
 from projectutils.guifunc import MESSAGE_NEW, MESSAGE_ADD, MESSAGE_CLEAR # Import GUI constants Message
 from projectutils.guifunc import GET_PASSWORD,RETURN_PASSWORD # Import GUI constants password
@@ -8,45 +8,62 @@ from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList,
 from projectutils.businessfunc import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
 from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
 from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN
+from projectutils.pdfFunc import addOverlayToPdf
 
-
-
-def update_message(message_holder, action, message, isResetId):
+def update_message(messageHolder, action, message, isResetId):
     """Update the message in the holder (first element of the list)."""
     if isinstance(message, str):
         print(message)
     if isResetId:
-        message_holder["id"] = 0
+        messageHolder["id"] = 0
     else:
-        message_holder["id"] = message_holder["id"] + 1
-    message_holder["action"] = action
-    message_holder["message"] = message
+        messageHolder["id"] = messageHolder["id"] + 1
+    messageHolder["action"] = action
+    messageHolder["message"] = message
 
-def processRecord(message_holder,FileObjectList,recordID,textOverlayList):
+def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,pdfFileName):
     """Simulate background message changes."""
     print("+Fn processRecord : ",recordID)
-    update_message(message_holder, MESSAGE_NEW, "Status updated: Start...",False)
+    pdfOverlayList= []
+    update_message(messageHolder, MESSAGE_NEW, "Status updated: Start...",False)
     for textOverlay in textOverlayList:
         print (textOverlay)
-    update_message(message_holder, WINDOW_QUIT, None,False)  # This should close the status window
+        overlayName = textOverlay["name"]
+        overlayText = textOverlay["text"]
+        ovelayLocX = overlayText["x"]
+        ovelayLocY = overlayText["y"]
+        overlayString = overlayText["string"]
+        if not None == overlayString:
+            update_message(messageHolder, MESSAGE_ADD, f"Add Text ",False)
+            pdfOverlayList.append({"text":overlayText, "x": ovelayLocX, "y": ovelayLocY})
+            time.sleep(1)
+        else:
+            update_message(messageHolder, MESSAGE_ADD, f"Add Text from File",False)
+            time.sleep(1)
+    update_message(messageHolder, MESSAGE_ADD, f"Creating PDF File ",False)
+    time.sleep(1)
+    for pdfOverlay in pdfOverlayList:
+        addOverlayToPdf(pdfFileName,pdfOverlay["text"],pdfOverlay["x"], pdfOverlay["y"])
+    update_message(messageHolder, WINDOW_QUIT, None,False)  # This should close the status window
 
-def noneed(message_holder):
+def noneed(messageHolder):
     time.sleep(2)
-    update_message(message_holder, GET_PASSWORD, "Password for File X",False)
+    update_message(messageHolder, GET_PASSWORD, "Password for File X",False)
     while(1):
         time.sleep(0.5)
-        print(".", message_holder["action"])
-        if RETURN_PASSWORD == message_holder["action"]:
+        print(".", messageHolder["action"])
+        if RETURN_PASSWORD == messageHolder["action"]:
             break
-    print ("password = ", message_holder["message"])
-    update_message(message_holder, MESSAGE_ADD, "Status updated: Processing...",False)
+    print ("password = ", messageHolder["message"])
+    update_message(messageHolder, MESSAGE_ADD, "Status updated: Processing...",False)
     time.sleep(1)
-    update_message(message_holder, MESSAGE_ADD, "Status updated: Almost done...",False)
+    update_message(messageHolder, MESSAGE_ADD, "Status updated: Almost done...",False)
     time.sleep(1)
-    update_message(message_holder, WINDOW_QUIT, None,False)  # This should close the status window
+    update_message(messageHolder, WINDOW_QUIT, None,False)  # This should close the status window
 
 def main():
     """Main Function"""
+    pdfFileName = getPdfFileName("Select PDF file",TEMPLATE_FOLDER_NAME)
     #get the template file name
     templateFileName = getExcelFileName("Open Template",TEMPLATE_FOLDER_NAME)
     #get Recoed ID list
@@ -58,8 +75,8 @@ def main():
     #get File Object list
     tempFileList = []
     fileObjectList = []
+    tempFileIndex = 1 #Keep track on files
     for sourceFile in fileNameList:
-        tempFileIndex = 1
         sourceFileFullPath = sourceFile
         while(1):
             returnValue = openExcelFile(sourceFileFullPath)
@@ -67,7 +84,7 @@ def main():
                 fileObjectList.append({"name": sourceFile, "object": returnValue["object"]})
                 break
             elif ERROR_FILE_NOT_FOUND == returnValue["error"]:
-                sourceFileFullPath = getExcelFileName(f"Open {sourceFile}","./")
+                sourceFileFullPath = getExcelFileName(f"Open {sourceFile}",TEMPLATE_FOLDER_NAME)
                 continue
             elif ERROR_FILE_ENCRYPTED == returnValue["error"]:
                 password = getPassword(sourceFile)
@@ -76,22 +93,22 @@ def main():
                     print("Fn: Main => Can not create file. unknown Error")
                     return ERROR_UNKNOWN
                 sourceFileFullPath = tempFileName
-                tempFileList.append(tempFileName)
+                tempFileList.append({"delete":True, "name": tempFileName})
                 tempFileIndex = tempFileIndex + 1
                 continue
             else:
                 return ERROR_UNKNOWN
 
     for recordId in recordIDList:
-        message_holder = {"id": 0, "action": MESSAGE_CLEAR, "message": None}
-        #update_message(message_holder,MESSAGE_NEW,templateFileName,True)
+        messageHolder = {"id": 0, "action": MESSAGE_CLEAR, "message": None}
+        #update_message(messageHolder,MESSAGE_NEW,templateFileName,True)
         windowName = "Status of Record ID = [" + str(recordId) + "]"
         # Start a background thread to simulate message updates
-        thread = threading.Thread(target=processRecord, args=(message_holder,fileObjectList,recordId,textOverlayList,))
+        thread = threading.Thread(target=processRecord, args=(messageHolder,fileObjectList,recordId,textOverlayList,pdfFileName,))
         thread.daemon = True  # Daemon thread will close with the main program
         thread.start()
         # Run the Tkinter GUI (must run in the main thread)
-        showStatus(message_holder, windowName)
+        showStatus(messageHolder, windowName)
     
     removeFiles(tempFileList)
 

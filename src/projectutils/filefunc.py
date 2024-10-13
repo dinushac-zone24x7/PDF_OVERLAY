@@ -14,11 +14,11 @@ def createTempFile(sourceFileName,password,tempFileName):
         print("Error [createTempFile]: Source file not found")
         return ERROR_FILE_NOT_FOUND # error 
     with open(sourceFileName, 'rb') as file:
-        office_file = msoffcrypto.OfficeFile(file)
-        office_file.load_key(password=password)  # Provide the password
+        officeFile = msoffcrypto.OfficeFile(file)
+        officeFile.load_key(password=password)  # Provide the password
         # Decrypt the file and save it as a temporary file
-        with open(tempFileName, 'wb') as decrypted_file:
-            office_file.decrypt(decrypted_file)
+        with open(tempFileName, 'wb') as decryptedFile:
+            officeFile.decrypt(decryptedFile)
     return ERROR_SUCCESS
 
 def openExcelFile(sourceFileName):
@@ -34,8 +34,8 @@ def openExcelFile(sourceFileName):
             print(f"Error: {e}")
             #check if this is a password protected file
             with open (sourceFileName, 'rb') as excelFile:
-                office_file = msoffcrypto.OfficeFile(excelFile)
-                if office_file.is_encrypted():
+                officeFile = msoffcrypto.OfficeFile(excelFile)
+                if officeFile.is_encrypted():
                     print("Fn [openExcelFile]:: File Encrypted.")
                     return {"error": ERROR_FILE_ENCRYPTED, "object": None}
                 else:
