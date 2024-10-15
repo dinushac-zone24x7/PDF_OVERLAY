@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, simpledialog
+from constants.errorcodes import ERROR_SUCCESS
 
 MESSAGE_NEW = 1
 MESSAGE_ADD = 2
@@ -11,6 +12,7 @@ RETURN_PASSWORD = 6
 
 
 def getPdfFileName(dialogTitle, initDir):
+    """Select a PDF File"""
     # Create a root window (but hide it)
     root = tk.Tk()
     root.withdraw()  # Hide the root window
@@ -27,6 +29,7 @@ def getPdfFileName(dialogTitle, initDir):
     return filePath
 
 def getExcelFileName(dialogTitle, initDir):
+    """Select an Excel file"""
     # Create a root window (but hide it)
     root = tk.Tk()
     root.withdraw()  # Hide the root window
@@ -43,6 +46,7 @@ def getExcelFileName(dialogTitle, initDir):
     return filePath
 
 def getPassword(fileName):
+    """Get password to open file with fileName"""
     # Create the root window (but hide it)
     root = tk.Tk()
     root.withdraw()  # Hide the main Tkinter window
@@ -59,7 +63,8 @@ def getPassword(fileName):
     return password
 
 def showStatus(messageHolder, windowName):
-    """Pop up a GUI with a read-only text box displaying the message."""    
+    """Pop up a GUI with a read-only text box displaying messageHolder."""
+    print("+Fn showStatus")
     lastAction = str(None)
     def messageProcesser():
         """Update the text box with the latest value of the message."""
@@ -83,8 +88,7 @@ def showStatus(messageHolder, windowName):
             messageHolder["message"] = simpledialog.askstring(
                 title="Password Required", 
                 prompt=f"{message}", 
-                show="*"
-            )
+                show="*")
             #return the password
             messageHolder["action"] = RETURN_PASSWORD
             root.after(500, messageProcesser) 
@@ -105,7 +109,6 @@ def showStatus(messageHolder, windowName):
             print("Message box = Clear")
         text_box.config(state=tk.DISABLED)  # Make text box read-only again
         root.after(500, messageProcesser)  # Call this function again after 1 second (1000 ms)
-
     # Create the main window
     root = tk.Tk()
     root.title(windowName)
@@ -117,16 +120,15 @@ def showStatus(messageHolder, windowName):
     window_height = int(screen_height / 4)
     # Set the geometry for the window to open at the top-left corner (0, 0)
     root.geometry(f"{window_width}x{window_height}+0+0")
-
     # Create a Text widget for showing the message
     text_box = tk.Text(root, height=10, width=50)
     text_box.pack(padx=10, pady=10)
-
     # Make the text box read-only
     text_box.config(state=tk.DISABLED)
-
     # Start updating the text box with the current value of the message
     messageProcesser()
-
     # Start the Tkinter event loop
     root.mainloop()
+    #return
+    print("-Fn showStatus")
+    return ERROR_SUCCESS

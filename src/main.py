@@ -21,45 +21,36 @@ def update_message(messageHolder, action, message, isResetId):
     messageHolder["action"] = action
     messageHolder["message"] = message
 
-def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,pdfFileName):
+def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTemplateName, outputFileName):
     """Simulate background message changes."""
     print("+Fn processRecord : ",recordID)
     pdfOverlayList= []
     update_message(messageHolder, MESSAGE_NEW, "Status updated: Start...",False)
+    #time.sleep(1)
     for textOverlay in textOverlayList:
-        print (textOverlay)
         overlayName = textOverlay["name"]
-        overlayText = textOverlay["text"]
-        ovelayLocX = overlayText["x"]
-        ovelayLocY = overlayText["y"]
-        overlayString = overlayText["string"]
-        if not None == overlayString:
-            update_message(messageHolder, MESSAGE_ADD, f"Add Text ",False)
-            pdfOverlayList.append({"text":overlayText, "x": ovelayLocX, "y": ovelayLocY})
-            time.sleep(1)
+        print (overlayName)
+        if overlayName.startswith("!<CONCAT>"):
+            #concatnate
+            print("* => Concatnate")
         else:
-            update_message(messageHolder, MESSAGE_ADD, f"Add Text from File",False)
-            time.sleep(1)
-    update_message(messageHolder, MESSAGE_ADD, f"Creating PDF File ",False)
-    time.sleep(1)
-    for pdfOverlay in pdfOverlayList:
-        addOverlayToPdf(pdfFileName,pdfOverlay["text"],pdfOverlay["x"], pdfOverlay["y"])
+            overlayText = textOverlay["text"]
+            ovelayLocX = overlayText["x"]
+            ovelayLocY = overlayText["y"]
+            overlayString = overlayText["string"]
+            if not None == overlayString:
+                print("* => Immidiate string")
+                pdfOverlayList.append({"text":overlayText, "x": ovelayLocX, "y": ovelayLocY})
+            else:
+                print ("* => From File")
+    update_message(messageHolder, MESSAGE_ADD, "Creating PDF File ",False)
+    addOverlayToPdf(PdfTemplateName, outputFileName, pdfOverlayList)
+    print("created PDF", outputFileName)
+    #time.sleep(1)
+    update_message(messageHolder, MESSAGE_ADD, "Done..! ",False)
+    #time.sleep(1)
     update_message(messageHolder, WINDOW_QUIT, None,False)  # This should close the status window
-
-def noneed(messageHolder):
-    time.sleep(2)
-    update_message(messageHolder, GET_PASSWORD, "Password for File X",False)
-    while(1):
-        time.sleep(0.5)
-        print(".", messageHolder["action"])
-        if RETURN_PASSWORD == messageHolder["action"]:
-            break
-    print ("password = ", messageHolder["message"])
-    update_message(messageHolder, MESSAGE_ADD, "Status updated: Processing...",False)
-    time.sleep(1)
-    update_message(messageHolder, MESSAGE_ADD, "Status updated: Almost done...",False)
-    time.sleep(1)
-    update_message(messageHolder, WINDOW_QUIT, None,False)  # This should close the status window
+    #time.sleep(1)
 
 def main():
     """Main Function"""
@@ -102,15 +93,47 @@ def main():
     for recordId in recordIDList:
         messageHolder = {"id": 0, "action": MESSAGE_CLEAR, "message": None}
         #update_message(messageHolder,MESSAGE_NEW,templateFileName,True)
-        windowName = "Status of Record ID = [" + str(recordId) + "]"
+        windowName = "Status of Record ID = [" + str(recordId["identifier"]) + "]"
+        outPutFileName = str(recordId["identifier"])+"-"+str(recordId["key"])+".pdf"
         # Start a background thread to simulate message updates
-        thread = threading.Thread(target=processRecord, args=(messageHolder,fileObjectList,recordId,textOverlayList,pdfFileName,))
+        thread = threading.Thread(target=processRecord, args=(messageHolder,fileObjectList,recordId,textOverlayList,pdfFileName,outPutFileName))
         thread.daemon = True  # Daemon thread will close with the main program
         thread.start()
         # Run the Tkinter GUI (must run in the main thread)
-        showStatus(messageHolder, windowName)
-    
+        #showStatus(messageHolder, windowName) #disable for now. There is a bug/unknown
+        while thread.is_alive():
+            print("Thread is still running...")
+            time.sleep(1)
+        print("Thread has finished.")
+    #we are done, so delete the temp files.  
     removeFiles(tempFileList)
+    return ERROR_SUCCESS
+
+def TestAlgo():
+    pdfOverlayList = []
+    templateFileName = getExcelFileName("Open Template",TEMPLATE_FOLDER_NAME)
+    #get the overlay list
+    textOverlayList = loadTemplateData(templateFileName,TEMPLATE_SHEET_NAME)
+    for textOverlay in textOverlayList:
+        overlayName = textOverlay["name"]
+        print (overlayName)
+        if overlayName.startswith("!<CONCAT>"):
+            #concatnate
+            print("* => Concatnate")
+        else:
+            overlayText = textOverlay["text"]
+            ovelayLocX = overlayText["x"]
+            ovelayLocY = overlayText["y"]
+            overlayString = overlayText["string"]
+            if not None == overlayString:
+                print("* => Immidiate string")
+                pdfOverlayList.append({"text":overlayText, "x": ovelayLocX, "y": ovelayLocY})
+            else:
+                print ("* => From File")
+    # We are done.. exit now.
+    return ERROR_SUCCESS
+
 
 if __name__ == "__main__":
     main()
+#    TestAlgo()
