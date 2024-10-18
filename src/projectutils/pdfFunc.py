@@ -12,9 +12,8 @@ def addOverlayToPdf(PdfTemplateName, outputFileName, pdfOverlayList):
     packet = io.BytesIO()
     can = canvas.Canvas(packet, pagesize=letter)
     for overlay in pdfOverlayList :
-        text = overlay["text"]
-        print(text["x"], text["y"], text["string"])
-        can.drawString(text["x"], text["y"], text["string"])
+        print(overlay["x"], overlay["y"], overlay["string"])
+        can.drawString(overlay["x"], overlay["y"], overlay["string"])
     can.save()
     #move to the beginning of the StringIO buffer
     packet.seek(0)

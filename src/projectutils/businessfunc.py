@@ -2,7 +2,7 @@ import openpyxl
 import os
 import re
 
-from constants.errorcodes import ERROR_SUCCESS,ERROR_FILE_NOT_FOUND
+from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN
 from projectutils.filefunc import openExcelFile, createTempFile
 
 import msoffcrypto
@@ -31,6 +31,53 @@ TEMP_DATA_FILE_COL_DATA = 4
 REC_COL_INDEX = 0
 REC_COL_KEY = 1 #Prinery Key
 REC_COL_STR_ID = 2 #name
+
+
+def getStringFromFileObject(fileName,FileOjectList,fileSheetName,primeryKey,primeryKeyCol,valueCol):
+    """Get the designated text from excel file object"""
+    for sourceFile in FileOjectList:
+        if(fileName == sourceFile["name"]):
+            workBook = sourceFile["object"]
+            print("extract record id ["+str(primeryKey) +"] from ["+fileName+ "]")
+            sheet = workBook[fileSheetName]
+            # Convert the primaryKeyCol and valueCol to numeric indices
+            primeryKeyColIndex = openpyxl.utils.column_index_from_string(primeryKeyCol)
+            valueColIndex = openpyxl.utils.column_index_from_string(valueCol)
+            print("primeryKeyColIndex",primeryKeyColIndex,"valueColIndex",valueColIndex)
+
+            # Loop through the rows, starting from the second row (assuming row 1 is the header)
+            for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row):
+                # Check if the value in the primaryKeyCol matches the given primaryKey
+                matchString = str(row[primeryKeyColIndex - 1].value)
+                print ("Try: match", matchString, "with", primeryKey)
+                if matchString == str(primeryKey):
+                    # Return the value from the valueCol in the matching row
+                    stringValue = str(row[valueColIndex - 1].value)
+                    print("Found", matchString, " => ", stringValue)
+                    return stringValue
+            # If the primary key isn't found, return Error
+            print("ERROR: Can not find primery key")
+            return ERROR_UNKNOWN
+
+def concatString(pdfOverlayList,overlayName,overlayString):
+    """Process string concatnation"""
+    # Define the regex pattern to match the format !<CONCAT><STRING>
+    pattern = r"^!<CONCAT><(.+)>$"
+    # Use re.match to check if the input string matches the pattern
+    match = re.match(pattern, overlayName)
+    if match:
+        # Extract the text between the second <>
+        exString = match.group(1)
+    else:
+        # If the format is incorrect
+        print("ERROR: The input string does not have the correct format: !<CONCAT><STRING>")
+        return ERROR_UNKNOWN
+    for pdfOverlay in pdfOverlayList:
+        if pdfOverlay["name"] == exString:
+            #found the matching location
+            print ("Concat ["+ overlayString + "] to " + pdfOverlay["name"])
+            pdfOverlay["string"] = pdfOverlay["string"] + overlayString
+    return ERROR_SUCCESS
 
 
 
