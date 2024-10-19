@@ -1,3 +1,9 @@
+""" PDF Functions 
+    src/projectutils/pdfFunc.py
+    This file contains the functions that use PyPDF library.
+    Author: vipulasrilanka@yahoo.com 
+    (c) 2024 """
+
 from PyPDF2 import PdfWriter, PdfReader
 import io
 from reportlab.pdfgen import canvas

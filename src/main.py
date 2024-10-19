@@ -1,15 +1,13 @@
 import threading
 import time
-import re
-from projectutils.guifunc import showStatus, getExcelFileName, getPassword, getPdfFileName  # Import GUI functions
+from constants.templatedata import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
 from projectutils.guifunc import WINDOW_QUIT # Import GUI constants, Window
 from projectutils.guifunc import MESSAGE_NEW, MESSAGE_ADD, MESSAGE_CLEAR # Import GUI constants Message
-from projectutils.guifunc import GET_PASSWORD,RETURN_PASSWORD # Import GUI constants password
-from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList, openSourceFiles, loadRecordIdList
-from projectutils.businessfunc import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
+from projectutils.guifunc import showStatus, getExcelFileName, getPassword, getPdfFileName  # Import GUI functions
+from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList, loadRecordIdList
 from projectutils.businessfunc import getStringFromFileObject, concatString
 from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
-from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN
+from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN, ERROR_ITEM_NOT_FOUND
 from projectutils.pdfFunc import addOverlayToPdf
 
 def update_message(messageHolder, action, message, isResetId):
@@ -29,8 +27,6 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
     print("+Fn processRecord : ",recordID["identifier"])
     pdfOverlayList= []
     update_message(messageHolder, MESSAGE_NEW, "Status updated: Start...",False)
-    #time.sleep(1)
-
     for textOverlay in textOverlayList:
         overlayName = textOverlay["name"]
         if None == overlayName:
@@ -49,6 +45,11 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
             primeryKeyCol = fileInfo["primeryKey"]
             valueCol = fileInfo["value"]
             overlayString = getStringFromFileObject(fileName,FileObjectList,fileSheetName,recordID["key"],primeryKeyCol,valueCol)
+            print("Type of overlayString = str ? ",isinstance(overlayString, str))
+            if (overlayString == ERROR_ITEM_NOT_FOUND or (not isinstance(overlayString, str))):
+                # Error returned by the function
+                print("ERROR: Can not find the primery key.!")
+                return (ERROR_ITEM_NOT_FOUND)
         else:
             #an immidiate string
             print("Immidiate string")
@@ -60,16 +61,12 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
             print("overlayString ["+ overlayName +"] = "+ str(overlayString), ovelayLocX, ovelayLocY)
             pdfOverlayList.append({"name":overlayName,"string":overlayString, "x": ovelayLocX, "y": ovelayLocY})
 
-
-
     update_message(messageHolder, MESSAGE_ADD, "Creating PDF File ",False)
     addOverlayToPdf(PdfTemplateName, outputFileName, pdfOverlayList)
     print("created PDF", outputFileName)
-    #time.sleep(1)
     update_message(messageHolder, MESSAGE_ADD, "Done..! ",False)
-    #time.sleep(1)
     update_message(messageHolder, WINDOW_QUIT, None,False)  # This should close the status window
-    #time.sleep(1)
+    return ERROR_SUCCESS
 
 def main():
     """Main Function"""

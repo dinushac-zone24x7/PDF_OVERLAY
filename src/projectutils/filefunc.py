@@ -1,3 +1,9 @@
+""" File Functions 
+    ssrc/projectutils/filefunc.py 
+    This file contains the functions related file manipulations
+    Author: vipulasrilanka@yahoo.com 
+    (c) 2024 """
+
 import msoffcrypto
 import openpyxl
 import os
