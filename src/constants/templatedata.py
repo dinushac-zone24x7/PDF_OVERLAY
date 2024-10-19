@@ -1,7 +1,6 @@
 """ Template file constants
     Author: vipulasrilanka@yahoo.com 
-    (c) 2024
-    """
+    (c) 2024 """
 
 TEMPLATE_FILE_NAME = "test/TEMPLATE.xlsx"
 TEMPLATE_FOLDER_NAME = "test/"
@@ -24,6 +23,6 @@ TEMP_DATA_FILE_COL_DATA = 4
 #Template column defs for record IDs
 REC_COL_INDEX = 0
 REC_COL_KEY = 1 #Prinery Key
-REC_COL_STR_ID = 2 #name
+REC_COL_STR_ID = 4 #name
 #Template String Data Length
 TEMP_MIN_STR_DATA_LENGTH = 3

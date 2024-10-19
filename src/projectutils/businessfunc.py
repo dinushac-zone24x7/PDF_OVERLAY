@@ -8,7 +8,7 @@ import openpyxl
 import os
 import re
 
-from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_ITEM_NOT_FOUND
+from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_NULL_STRING
 from constants.templatedata import REC_COL_INDEX, REC_COL_KEY, REC_COL_STR_ID
 from constants.templatedata import TEMP_COL_INDEX, TEMP_COL_NAME, TEMP_COL_CONTENT, TEMP_COL_LOC_X, TEMP_COL_LOC_Y
 from constants.templatedata import TEMP_DATA_TYPE, TEMP_DATA_FILE_NAME, TEMP_DATA_IMD_TEXT, TEMP_DATA_FILE_SHEET, TEMP_DATA_FILE_COL_KEY, TEMP_DATA_FILE_COL_DATA
@@ -25,7 +25,7 @@ def getStringFromFileObject(fileName,fileOjectList,fileSheetName,primeryKey,prim
           primeryKey (string/number) : matching condition to look for
           primeryKeyCol (string) : the column ID to match
           valueCol (string) : the column ID to return data from
-          """
+    Returns string: relevent text from the file, or None """
     #check for argumanet validity and rerurn if there are errors <TODO>
     #go through each file object and look for a match.
     for sourceFile in fileOjectList:
@@ -50,7 +50,7 @@ def getStringFromFileObject(fileName,fileOjectList,fileSheetName,primeryKey,prim
                     return stringValue
             # If the primary key isn't found, return Error
             print("ERROR: Can not find primery key")
-            return ERROR_ITEM_NOT_FOUND
+            return ERROR_NULL_STRING
 
 def concatString(pdfOverlayList,overlayName,overlayString):
     """ Process string concatnation. This function will get a concantation logic,
@@ -59,7 +59,7 @@ def concatString(pdfOverlayList,overlayName,overlayString):
     Args: pdfOverlayList (list) directory that contains the current overlay list 
           overlayName (string) name of the overlay to add "overlayString"
           overlayString (string) the text to add.
-          """
+    Returns: int: Error code """
     # Define the regex pattern to match the format !<CONCAT><STRING>
     pattern = r"^!<CONCAT><(.+)>$"
     # Use re.match to check if the input string matches the pattern
@@ -145,7 +145,7 @@ def loadTemplateData(templateFile,sheetName):
 def getFilesFromOverlayList(textOverlayList):
     """ Returns a list of file names in the overlay 
     Args: textOverlayList (list): list of directories
-    Returns: list: A list of file names, strings"""
+    Returns: list: A list of file names, strings """
 
     print("+ Fn: getFilesFromOverlayList")
     fileNameList = []
@@ -162,7 +162,11 @@ def getFilesFromOverlayList(textOverlayList):
 
 
 def loadRecordIdList(templateFile,sheetName):
-    """ loadRecordIdList: This will load the records to process """
+    """ loadRecordIdList: This will load the records to process 
+    Args:   templateFile (string): Template file name
+            sheetName (string): The sheet name with data
+    Returns: list: a list of directories with keys and identifiers of records """
+
     print("+ Fn: loadRecordIdList")
     # variable to return data
     recordIdList = [] 
@@ -171,7 +175,7 @@ def loadRecordIdList(templateFile,sheetName):
         print("Error [loadTemplateData]: Tempate file not found")
         return recordIdList # error - empty
     #open template file, and load the sheet
-    templateBook = openpyxl.load_workbook(templateFile)
+    templateBook = openpyxl.load_workbook(templateFile, data_only=True)
     recordIdDataSheet = templateBook[sheetName]
     print("Debug [loadTemplateData]: Sheet Size",recordIdDataSheet.dimensions, recordIdDataSheet.max_row, " Rows ", recordIdDataSheet.max_column, " columns")
     #go through every text overlay item
