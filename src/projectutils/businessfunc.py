@@ -1,41 +1,34 @@
+""" Busiess Functions 
+    src/projectutils/businessfunc.py 
+    This file contains the functions related to the main business functions.
+    Author: vipulasrilanka@yahoo.com 
+    (c) 2024 """
+
 import openpyxl
 import os
 import re
 
-from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN
-from projectutils.filefunc import openExcelFile, createTempFile
+from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_NULL_STRING
+from constants.templatedata import REC_COL_INDEX, REC_COL_KEY, REC_COL_STR_ID
+from constants.templatedata import TEMP_COL_INDEX, TEMP_COL_NAME, TEMP_COL_CONTENT, TEMP_COL_LOC_X, TEMP_COL_LOC_Y
+from constants.templatedata import TEMP_DATA_TYPE, TEMP_DATA_FILE_NAME, TEMP_DATA_IMD_TEXT, TEMP_DATA_FILE_SHEET, TEMP_DATA_FILE_COL_KEY, TEMP_DATA_FILE_COL_DATA
+from constants.templatedata import TEMP_MIN_STR_DATA_LENGTH
 
-import msoffcrypto
-import getpass
-
-TEMPLATE_FILE_NAME = "test/TEMPLATE.xlsx"
-TEMPLATE_FOLDER_NAME = "/Users/vipula/Documents/GitHub/PDF_OVERLAY/test/"
-SOURCE_PATH = "test/"
-TEMPLATE_SHEET_NAME = "Overlay"
-RECORD_LIST_SHEET_NAME = "Data"
-#Template column defs for overlays
-TEMP_COL_INDEX = 0
-TEMP_COL_NAME = 1
-TEMP_COL_CONTENT = 2
-TEMP_COL_LOC_X = 3
-TEMP_COL_LOC_Y = 4
-#Data content defs for overlays
-TEMP_DATA_TYPE = 0
-TEMP_DATA_FILE_NAME = 1
-TEMP_DATA_IMD_TEXT = 1
-#TEMP_DATA_FILE_LOCKED = 2
-TEMP_DATA_FILE_SHEET = 2
-TEMP_DATA_FILE_COL_KEY = 3
-TEMP_DATA_FILE_COL_DATA = 4
-#Template column defs for record IDs
-REC_COL_INDEX = 0
-REC_COL_KEY = 1 #Prinery Key
-REC_COL_STR_ID = 2 #name
-
-
-def getStringFromFileObject(fileName,FileOjectList,fileSheetName,primeryKey,primeryKeyCol,valueCol):
-    """Get the designated text from excel file object"""
-    for sourceFile in FileOjectList:
+def getStringFromFileObject(fileName,fileOjectList,fileSheetName,primeryKey,primeryKeyCol,valueCol):
+    """Get the designated text from excel file object. It will look for the file name in the
+       fileOjectList["name"] and get the file object from fileOjectList["object"]. Open the fileSheetName
+       from the object, and search the primeryKeyCol for primeryKey. If it matches, will return the value 
+       in the valueCol. 
+    Args: fileName (string) : name of the excel workbook
+          fileOjectList (list) : directory withfile object against the name
+          fileSheetName (string) : sheet name in the workbook
+          primeryKey (string/number) : matching condition to look for
+          primeryKeyCol (string) : the column ID to match
+          valueCol (string) : the column ID to return data from
+    Returns string: relevent text from the file, or None """
+    #check for argumanet validity and rerurn if there are errors <TODO>
+    #go through each file object and look for a match.
+    for sourceFile in fileOjectList:
         if(fileName == sourceFile["name"]):
             workBook = sourceFile["object"]
             print("extract record id ["+str(primeryKey) +"] from ["+fileName+ "]")
@@ -43,7 +36,7 @@ def getStringFromFileObject(fileName,FileOjectList,fileSheetName,primeryKey,prim
             # Convert the primaryKeyCol and valueCol to numeric indices
             primeryKeyColIndex = openpyxl.utils.column_index_from_string(primeryKeyCol)
             valueColIndex = openpyxl.utils.column_index_from_string(valueCol)
-            print("primeryKeyColIndex",primeryKeyColIndex,"valueColIndex",valueColIndex)
+            print("primeryKeyColIndex ["+ str(primeryKeyColIndex) + "] valueColIndex [" + str(valueColIndex) + "]")
 
             # Loop through the rows, starting from the second row (assuming row 1 is the header)
             for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row):
@@ -57,10 +50,16 @@ def getStringFromFileObject(fileName,FileOjectList,fileSheetName,primeryKey,prim
                     return stringValue
             # If the primary key isn't found, return Error
             print("ERROR: Can not find primery key")
-            return ERROR_UNKNOWN
+            return ERROR_NULL_STRING
 
 def concatString(pdfOverlayList,overlayName,overlayString):
-    """Process string concatnation"""
+    """ Process string concatnation. This function will get a concantation logic,
+        find the matching overly item and add the new string at the end of the
+        overlay text.
+    Args: pdfOverlayList (list) directory that contains the current overlay list 
+          overlayName (string) name of the overlay to add "overlayString"
+          overlayString (string) the text to add.
+    Returns: int: Error code """
     # Define the regex pattern to match the format !<CONCAT><STRING>
     pattern = r"^!<CONCAT><(.+)>$"
     # Use re.match to check if the input string matches the pattern
@@ -78,8 +77,6 @@ def concatString(pdfOverlayList,overlayName,overlayString):
             print ("Concat ["+ overlayString + "] to " + pdfOverlay["name"])
             pdfOverlay["string"] = pdfOverlay["string"] + overlayString
     return ERROR_SUCCESS
-
-
 
 def loadTemplateData(templateFile,sheetName):
     """ Reads the text overlays from the template file.
@@ -114,7 +111,7 @@ def loadTemplateData(templateFile,sheetName):
         if("None" == dataString):
             print("Warning [loadTemplateData]: User terminated at Index : ", rowIndex)
             break
-        if(not (dataString.startswith('<') and dataString.endswith('>') and len(dataString) > 3)):
+        if(not (dataString.startswith('<') and dataString.endswith('>') and len(dataString) > TEMP_MIN_STR_DATA_LENGTH)):
             print("Error [loadTemplateData]: Data Error at Index : ",rowIndex)
             break
         #process the file data. Get all the data points to a list
@@ -122,27 +119,24 @@ def loadTemplateData(templateFile,sheetName):
         #check the item 2, File locked
         if "!T" == data[TEMP_DATA_TYPE]:
             print(rowIndex, "overlay type > immidiate text")
-            #Save notmal text data
-            textOverlayList.append({"name": overlays[TEMP_COL_NAME].value, 
-                                    "text":{ "string": data[TEMP_DATA_IMD_TEXT], 
+            #Save immidiate text data
+            textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value), 
+                                    "text":{ "string": str(data[TEMP_DATA_IMD_TEXT]), 
                                             "x": overlays[TEMP_COL_LOC_X].value, 
                                             "y": overlays[TEMP_COL_LOC_Y].value}})
-        elif "!F" == data[0]:
+        elif "!F" == data[TEMP_DATA_TYPE]:
             print(rowIndex, "overlay type > From file => ",data[TEMP_DATA_FILE_NAME])
-            #isFileLocked = False
-            #if data[TEMP_DATA_FILE_LOCKED] == "LOCKED=1":
-            #    isFileLocked = True
             #save the extended data
-            textOverlayList.append({"name": overlays[TEMP_COL_NAME].value, 
+            textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value), 
                                     "text":{ "string": None, 
                                             "x": overlays[TEMP_COL_LOC_X].value, 
                                             "y": overlays[TEMP_COL_LOC_Y].value},
-                                    "file" : {"name": data[TEMP_DATA_FILE_NAME], 
-                                                "sheet": data[TEMP_DATA_FILE_SHEET], 
+                                    "file" : {"name": str(data[TEMP_DATA_FILE_NAME]), 
+                                                "sheet": str(data[TEMP_DATA_FILE_SHEET]), 
                                                 "primeryKey": data[TEMP_DATA_FILE_COL_KEY], 
                                                 "value": data[TEMP_DATA_FILE_COL_DATA]}})
         else:
-            print(rowIndex, "Error: undefined overlay type : ", data[0])
+            print(rowIndex, "Error: undefined overlay type : ", data[TEMP_DATA_TYPE])
             break
     # Data store is done. return
     print("- Fn: loadTemplateData")
@@ -151,7 +145,7 @@ def loadTemplateData(templateFile,sheetName):
 def getFilesFromOverlayList(textOverlayList):
     """ Returns a list of file names in the overlay 
     Args: textOverlayList (list): list of directories
-    Returns: list: A list of file names, strings"""
+    Returns: list: A list of file names, strings """
 
     print("+ Fn: getFilesFromOverlayList")
     fileNameList = []
@@ -168,7 +162,11 @@ def getFilesFromOverlayList(textOverlayList):
 
 
 def loadRecordIdList(templateFile,sheetName):
-    """ loadRecordIdList: This will load the records to process """
+    """ loadRecordIdList: This will load the records to process 
+    Args:   templateFile (string): Template file name
+            sheetName (string): The sheet name with data
+    Returns: list: a list of directories with keys and identifiers of records """
+
     print("+ Fn: loadRecordIdList")
     # variable to return data
     recordIdList = [] 
@@ -177,7 +175,7 @@ def loadRecordIdList(templateFile,sheetName):
         print("Error [loadTemplateData]: Tempate file not found")
         return recordIdList # error - empty
     #open template file, and load the sheet
-    templateBook = openpyxl.load_workbook(templateFile)
+    templateBook = openpyxl.load_workbook(templateFile, data_only=True)
     recordIdDataSheet = templateBook[sheetName]
     print("Debug [loadTemplateData]: Sheet Size",recordIdDataSheet.dimensions, recordIdDataSheet.max_row, " Rows ", recordIdDataSheet.max_column, " columns")
     #go through every text overlay item
@@ -202,13 +200,3 @@ def loadRecordIdList(templateFile,sheetName):
             break
         recordIdList.append({"key": int(primeryKey), "identifier": str(record[REC_COL_STR_ID].value)})
     return recordIdList
-
-
-def openSourceFiles(fileNameList):
-    """openSourceFiles"""
-    print("+Fn openSourceFiles, PARAM = ", fileNameList)
-    fileObjectList = []
-    for fileName in fileNameList:
-        fileObjectList.append({"name": fileName, "object": None, "tempFile": None})
-    return fileObjectList
-

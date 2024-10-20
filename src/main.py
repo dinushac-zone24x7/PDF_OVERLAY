@@ -1,15 +1,14 @@
 import threading
 import time
-import re
-from projectutils.guifunc import showStatus, getExcelFileName, getPassword, getPdfFileName  # Import GUI functions
+from constants.templatedata import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
+from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN, ERROR_ITEM_NOT_FOUND
+from constants.pdfData import PDF_FIRST_PAGE, getPdfPage
 from projectutils.guifunc import WINDOW_QUIT # Import GUI constants, Window
 from projectutils.guifunc import MESSAGE_NEW, MESSAGE_ADD, MESSAGE_CLEAR # Import GUI constants Message
-from projectutils.guifunc import GET_PASSWORD,RETURN_PASSWORD # Import GUI constants password
-from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList, openSourceFiles, loadRecordIdList
-from projectutils.businessfunc import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
+from projectutils.guifunc import showStatus, getExcelFileName, getPassword, getPdfFileName  # Import GUI functions
+from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList, loadRecordIdList
 from projectutils.businessfunc import getStringFromFileObject, concatString
 from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
-from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN
 from projectutils.pdfFunc import addOverlayToPdf
 
 def update_message(messageHolder, action, message, isResetId):
@@ -24,13 +23,18 @@ def update_message(messageHolder, action, message, isResetId):
     messageHolder["message"] = message
 
 
-def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTemplateName, outputFileName):
-    """Simulate background message changes."""
+def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTemplateName, PdfTemplatePage, outputFileName):
+    """ Main record proccesor thread.
+        This will each overlay for a given record 
+    Args:   messageHolder (directory): contains the process status
+            FileObjectList(list): list of directories with file names and mapping objects
+            recordID (int): Record ID
+            textOverlayList (list): directories with ordered overlay list
+            PdfTemplateName (string) name of the PDF template
+            outputFileName (string) name of the output file"""
     print("+Fn processRecord : ",recordID["identifier"])
     pdfOverlayList= []
     update_message(messageHolder, MESSAGE_NEW, "Status updated: Start...",False)
-    #time.sleep(1)
-
     for textOverlay in textOverlayList:
         overlayName = textOverlay["name"]
         if None == overlayName:
@@ -49,6 +53,11 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
             primeryKeyCol = fileInfo["primeryKey"]
             valueCol = fileInfo["value"]
             overlayString = getStringFromFileObject(fileName,FileObjectList,fileSheetName,recordID["key"],primeryKeyCol,valueCol)
+            print("Type of overlayString = str ? ",isinstance(overlayString, str))
+            if not isinstance(overlayString, str):
+                # Error returned by the function
+                print("ERROR: Can not find the primery key.!")
+                return (ERROR_ITEM_NOT_FOUND)
         else:
             #an immidiate string
             print("Immidiate string")
@@ -60,16 +69,12 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
             print("overlayString ["+ overlayName +"] = "+ str(overlayString), ovelayLocX, ovelayLocY)
             pdfOverlayList.append({"name":overlayName,"string":overlayString, "x": ovelayLocX, "y": ovelayLocY})
 
-
-
     update_message(messageHolder, MESSAGE_ADD, "Creating PDF File ",False)
-    addOverlayToPdf(PdfTemplateName, outputFileName, pdfOverlayList)
+    addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList)
     print("created PDF", outputFileName)
-    #time.sleep(1)
     update_message(messageHolder, MESSAGE_ADD, "Done..! ",False)
-    #time.sleep(1)
     update_message(messageHolder, WINDOW_QUIT, None,False)  # This should close the status window
-    #time.sleep(1)
+    return ERROR_SUCCESS
 
 def main():
     """Main Function"""
@@ -112,10 +117,10 @@ def main():
     for recordId in recordIDList:
         messageHolder = {"id": 0, "action": MESSAGE_CLEAR, "message": None}
         #update_message(messageHolder,MESSAGE_NEW,templateFileName,True)
-        windowName = "Status of Record ID = [" + str(recordId["identifier"]) + "]"
-        outPutFileName = str(recordId["identifier"])+"-"+str(recordId["key"])+".pdf"
+        #windowName = "Status of Record ID = [" + str(recordId["identifier"]) + "]"
+        outputFileName = str(recordId["key"])+"-"+str(recordId["identifier"])+".pdf"
         # Start a background thread to simulate message updates
-        thread = threading.Thread(target=processRecord, args=(messageHolder,fileObjectList,recordId,textOverlayList,pdfFileName,outPutFileName))
+        thread = threading.Thread(target=processRecord, args=(messageHolder,fileObjectList,recordId,textOverlayList,pdfFileName,PDF_FIRST_PAGE,outputFileName))
         thread.daemon = True  # Daemon thread will close with the main program
         thread.start()
         # Run the Tkinter GUI (must run in the main thread)
@@ -128,48 +133,6 @@ def main():
     removeFiles(tempFileList)
     return ERROR_SUCCESS
 
-def TestAlgo():
-    pdfOverlayList = []
-    FileObjectList = []
-    recordID = 0
-#    templateFileName = getExcelFileName("Open Template",TEMPLATE_FOLDER_NAME)
-    templateFileName = "/Users/vipula/Documents/GitHub/PDF_OVERLAY/test/TEMPLATE.xlsx"
-    #get the overlay list
-    textOverlayList = loadTemplateData(templateFileName,TEMPLATE_SHEET_NAME)
-    for textOverlay in textOverlayList:
-        overlayName = textOverlay["name"]
-        if None == overlayName:
-            print("Error - Bad overlay")
-            exit (ERROR_UNKNOWN)
-        overlayText = textOverlay["text"]
-        ovelayLocX = overlayText["x"]
-        ovelayLocY = overlayText["y"]
-        overlayString = overlayText["string"]
-        if None == overlayString:
-            #Not an immidiate string
-            print("Not Immidiate string")
-            fileInfo = textOverlay["file"]
-            fileName = fileInfo["name"]
-            fileSheetName = fileInfo["sheet"]
-            primeryKeyCol = fileInfo["primeryKey"]
-            valueCol = fileInfo["value"]
-            overlayString = getStringFromFileObject(fileName,FileObjectList,fileSheetName,recordID,primeryKeyCol,valueCol)
-        else:
-            #an immidiate string
-            print("Immidiate string")
-        if overlayName.startswith("!<CONCAT>"):
-            #concatnate
-            print("* => Concatnate")
-            concatString(pdfOverlayList,overlayName,overlayString)
-        else:
-            print("overlayString ["+ overlayName +"] = "+ overlayString, ovelayLocX,ovelayLocY)
-            pdfOverlayList.append({"name":overlayName,"string":overlayString, "x": ovelayLocX, "y": ovelayLocY})
-
-    # We are done.. exit now.
-    print(pdfOverlayList)
-    return ERROR_SUCCESS
-
 
 if __name__ == "__main__":
     main()
-#    TestAlgo()

@@ -1,3 +1,9 @@
+""" File Functions 
+    ssrc/projectutils/filefunc.py 
+    This file contains the functions related file manipulations
+    Author: vipulasrilanka@yahoo.com 
+    (c) 2024 """
+
 import msoffcrypto
 import openpyxl
 import os
@@ -29,7 +35,7 @@ def openExcelFile(sourceFileName):
         return {"error": ERROR_FILE_NOT_FOUND, "object": None} # error
     else:
         try:
-            workbook = openpyxl.load_workbook(sourceFileName)
+            workbook = openpyxl.load_workbook(sourceFileName, data_only=True)
         except Exception as e:
             print(f"Error: {e}")
             #check if this is a password protected file

@@ -1,3 +1,8 @@
+""" GUI Functions 
+    src/projectutils/guifunc.py 
+    This file contains the functions with graphical user interfaces
+    Author: vipulasrilanka@yahoo.com 
+    (c) 2024 """
 import tkinter as tk
 from tkinter import filedialog, simpledialog
 from constants.errorcodes import ERROR_SUCCESS
@@ -9,7 +14,6 @@ WINDOW_QUIT = 0
 GET_PASSWORD = 4
 WAIT_FOR_PASSWORD = 5
 RETURN_PASSWORD = 6
-
 
 def getPdfFileName(dialogTitle, initDir):
     """Select a PDF File"""
