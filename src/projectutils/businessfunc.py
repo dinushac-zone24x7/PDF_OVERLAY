@@ -8,7 +8,7 @@ import openpyxl
 import os
 import re
 
-from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_NULL_STRING
+from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_NULL_STRING, ERROR_FILE_NOT_FOUND
 from constants.templatedata import REC_COL_INDEX, REC_COL_KEY, REC_COL_STR_ID
 from constants.templatedata import TEMP_COL_INDEX, TEMP_COL_NAME, TEMP_COL_CONTENT, TEMP_COL_LOC_X, TEMP_COL_LOC_Y
 from constants.templatedata import TEMP_DATA_TYPE, TEMP_DATA_FILE_NAME, TEMP_DATA_IMD_TEXT, TEMP_DATA_FILE_SHEET, TEMP_DATA_FILE_COL_KEY, TEMP_DATA_FILE_COL_DATA
@@ -82,7 +82,7 @@ def loadTemplateData(templateFile,sheetName):
     """ Reads the text overlays from the template file.
     Args: templateFile (string): The template file name
           sheetName (string): The sheet name with data
-    Returns: list: A list of ordered dictionaries """
+    Returns: list: A list of ordered dictionaries, or error code """
 
     print("+ Fn: loadTemplateData")
     # variable to return data
@@ -90,7 +90,7 @@ def loadTemplateData(templateFile,sheetName):
     #check if the file path is valid
     if( not os.path.exists(templateFile)):
         print("Error [loadTemplateData]: Tempate file not found")
-        return textOverlayList # error - empty
+        return ERROR_FILE_NOT_FOUND # error 
     #open template file, and load the sheet
     templateBook = openpyxl.load_workbook(templateFile)
     textOverlayDataSheet = templateBook[sheetName]
@@ -143,18 +143,21 @@ def loadTemplateData(templateFile,sheetName):
     return textOverlayList
 
 def getFilesFromOverlayList(textOverlayList):
-    """ Returns a list of file names in the overlay 
+    """ Returns a unique list of file names in the overlay 
+        Note: having no files in the list is not an error.
     Args: textOverlayList (list): list of directories
     Returns: list: A list of file names, strings """
 
     print("+ Fn: getFilesFromOverlayList")
     fileNameList = []
     #go through each overlay
-    for testOverlay in textOverlayList:
-        if "file" in testOverlay:
-            filedata = testOverlay["file"]
+    for textOverlay in textOverlayList:
+        if "file" in textOverlay:
+            # there is a file attribute
+            filedata = textOverlay["file"]
             filename = filedata["name"]
             print("Fould a file ", filename)
+            #check if this file is already in the list
             if filename not in fileNameList:
                 fileNameList.append(filename)
     print("- Fn: getFilesFromOverlayList")
@@ -165,19 +168,19 @@ def loadRecordIdList(templateFile,sheetName):
     """ loadRecordIdList: This will load the records to process 
     Args:   templateFile (string): Template file name
             sheetName (string): The sheet name with data
-    Returns: list: a list of directories with keys and identifiers of records """
+    Returns: list: a list of directories with keys and identifiers of records or error code """
 
     print("+ Fn: loadRecordIdList")
     # variable to return data
     recordIdList = [] 
     #check if the file path is valid
     if( not os.path.exists(templateFile)):
-        print("Error [loadTemplateData]: Tempate file not found")
-        return recordIdList # error - empty
+        print("Error [loadRecordIdList]: Tempate file not found")
+        return ERROR_FILE_NOT_FOUND # error code
     #open template file, and load the sheet
     templateBook = openpyxl.load_workbook(templateFile, data_only=True)
     recordIdDataSheet = templateBook[sheetName]
-    print("Debug [loadTemplateData]: Sheet Size",recordIdDataSheet.dimensions, recordIdDataSheet.max_row, " Rows ", recordIdDataSheet.max_column, " columns")
+    print("Debug [loadRecordIdList]: Sheet Size",recordIdDataSheet.dimensions, recordIdDataSheet.max_row, " Rows ", recordIdDataSheet.max_column, " columns")
     #go through every text overlay item
     for record in recordIdDataSheet.rows:
         #Get the index to a string. Empty cells will be string "None"
@@ -188,12 +191,12 @@ def loadRecordIdList(templateFile,sheetName):
             break
         # the index has to be always numbers, skip others
         if( not rowIndex.isdigit()):
-            print("Warning [loadTemplateData]: skip Row Index : ", rowIndex)
+            print("Warning [loadRecordIdList]: skip Row Index : ", rowIndex)
             continue
         primeryKey = str(record[REC_COL_KEY].value)
         #user initiated end of loop.
         if("None" == primeryKey):
-            print("Warning [loadTemplateData]: User terminated at Index : ", rowIndex)
+            print("Warning [loadRecordIdList]: User terminated at Index : ", rowIndex)
             break
         if not primeryKey.isdigit():
             print("Error [primeryKey]: Data Error at Index : ",rowIndex)

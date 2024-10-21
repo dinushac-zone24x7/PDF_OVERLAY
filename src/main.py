@@ -1,7 +1,10 @@
 import threading
 import time
+import sys
+import os
+import json
 from constants.templatedata import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
-from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN, ERROR_ITEM_NOT_FOUND
+from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN, ERROR_ITEM_NOT_FOUND, ERROR_GENERAL_FAILIURE
 from constants.pdfData import PDF_FIRST_PAGE, getPdfPage
 from projectutils.guifunc import WINDOW_QUIT # Import GUI constants, Window
 from projectutils.guifunc import MESSAGE_NEW, MESSAGE_ADD, MESSAGE_CLEAR # Import GUI constants Message
@@ -9,7 +12,30 @@ from projectutils.guifunc import showStatus, getExcelFileName, getPassword, getP
 from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList, loadRecordIdList
 from projectutils.businessfunc import getStringFromFileObject, concatString
 from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
+from projectutils.filefunc import saveSessionData, loadSessionData
 from projectutils.pdfFunc import addOverlayToPdf
+
+def getSessionData(argv):
+    """Get the session data including source file names"""
+    sessionData = {"error": ERROR_SUCCESS, "rootFolder":None, "sessionFileName": None, "pdfFileName": None,"templateFileName": None,"sourceFiles": []}
+    sessionData["rootFolder"] = os.path.dirname(os.path.abspath(argv[0]))
+    if len(argv) < 2:
+        #no args, Get sessoin data manually
+        #get the PDF template file name from user
+        sessionData["pdfFileName"] = getPdfFileName("Select PDF file",sessionData["rootFolder"])
+        #get the template file name from user
+        sessionData["templateFileName"] = getExcelFileName("Open Template",sessionData["rootFolder"])
+    else:
+        sessionData["sessionFileName"] = "argv[1]"
+        print("Using Session File => ", sessionData["sessionFileName"])
+        savedSession = loadSessionData(sessionData["sessionFileName"])
+        if isinstance(savedSession,dict):
+            sessionData["pdfFileName"] = savedSession["pdfFileName"]
+            sessionData["templateFileName"] = savedSession["templateFileName"]
+            sessionData["sourceFiles"] = savedSession["sourceFiles"]
+        else:
+            sessionData["error"] = ERROR_UNKNOWN
+    return sessionData
 
 def update_message(messageHolder, action, message, isResetId):
     """Update the message in the holder (first element of the list)."""
@@ -78,13 +104,23 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
 
 def main():
     """Main Function"""
-    pdfFileName = getPdfFileName("Select PDF file",TEMPLATE_FOLDER_NAME)
-    #get the template file name
-    templateFileName = getExcelFileName("Open Template",TEMPLATE_FOLDER_NAME)
+    #create place holders for session variables
+    sessionData = getSessionData(sys.argv)
+    if not sessionData["error"] == ERROR_SUCCESS:
+        print("ERROR: Can not load session data.")
+        exit(ERROR_GENERAL_FAILIURE)
     #get Recoed ID list
-    recordIDList = loadRecordIdList(templateFileName,RECORD_LIST_SHEET_NAME)
+    recordIDList = loadRecordIdList(sessionData["templateFileName"],RECORD_LIST_SHEET_NAME)
     #get the overlay list
-    textOverlayList = loadTemplateData(templateFileName,TEMPLATE_SHEET_NAME)
+    textOverlayList = loadTemplateData(sessionData["templateFileName"],TEMPLATE_SHEET_NAME)
+    #check errors and exut
+    if isinstance(textOverlayList,int) or  isinstance(recordIDList,int):
+        print("ERROR: Check the template file")
+        exit(ERROR_GENERAL_FAILIURE)
+    if isinstance(recordIDList, list) and len(recordIDList) < 1:
+        # there are no records to process
+        print("ERROR: can not find records to process. Check the template file")
+        exit(ERROR_GENERAL_FAILIURE)
     #get the file list
     fileNameList = getFilesFromOverlayList(textOverlayList)
     #get File Object list
@@ -92,7 +128,7 @@ def main():
     fileObjectList = []
     tempFileIndex = 1 #Keep track on files
     for sourceFile in fileNameList:
-        sourceFileFullPath = sourceFile
+        sourceFileFullPath = os.path.join(sessionData["rootFolder"],sourceFile)
         while(1):
             returnValue = openExcelFile(sourceFileFullPath)
             if ERROR_SUCCESS == returnValue["error"]:
@@ -113,14 +149,19 @@ def main():
                 continue
             else:
                 return ERROR_UNKNOWN
-
+    #save the settings
+    if not sessionData["sessionFileName"] == None:
+        #save the session.
+        saveSessionData(sessionData["sessionFileName"], sessionData["pdfFileName"], sessionData["templateFileName"], fileObjectList)
+    print ("Start Processing [", len(recordIDList) , "] records")
     for recordId in recordIDList:
         messageHolder = {"id": 0, "action": MESSAGE_CLEAR, "message": None}
         #update_message(messageHolder,MESSAGE_NEW,templateFileName,True)
         #windowName = "Status of Record ID = [" + str(recordId["identifier"]) + "]"
         outputFileName = str(recordId["key"])+"-"+str(recordId["identifier"])+".pdf"
+        print("Processing ["+ outputFileName + "]")
         # Start a background thread to simulate message updates
-        thread = threading.Thread(target=processRecord, args=(messageHolder,fileObjectList,recordId,textOverlayList,pdfFileName,PDF_FIRST_PAGE,outputFileName))
+        thread = threading.Thread(target=processRecord, args=(messageHolder,fileObjectList,recordId,textOverlayList,sessionData["pdfFileName"],PDF_FIRST_PAGE,outputFileName))
         thread.daemon = True  # Daemon thread will close with the main program
         thread.start()
         # Run the Tkinter GUI (must run in the main thread)
@@ -136,3 +177,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

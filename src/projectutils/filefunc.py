@@ -7,10 +7,31 @@
 import msoffcrypto
 import openpyxl
 import os
+import json
 from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN
 
-# passwords perdata and saldata 
+# Test Passwords: (1) EMP01 - perdata (2) PAY01 - saldata (3) TEMPLATE - NO PASSWORD
 
+def saveSessionData (sessionFile, pdfFileName, templateFileName, fileObjectList):
+    """ Save the session data to a json file"""
+    settings = {
+        "pdfFileName": pdfFileName,
+        "templateFileName": templateFileName,
+        "sourceFiles": []  # This will store file-specific settings
+    }
+    for sourceFile in fileObjectList:
+        print(sourceFile["name"], sourceFile["altPath"])
+        settings["sourceFiles"].append({"name": sourceFile["name"], "altPath" : sourceFile["altPath"]})
+    with open(sessionFile, 'w') as f:
+        json.dump(settings, f, indent=4)
+
+def loadSessionData (sessionFile):
+    """ Load the session data from a json file"""
+    if not os.path.exists(sessionFile):
+        print("Error [loadSessiondata]: Invalid session file.")
+        return ERROR_FILE_NOT_FOUND
+    with open(sessionFile, 'r') as f:
+        return json.load(f)
 
 def createTempFile(sourceFileName,password,tempFileName):
     """ create a temp data file from a locked excel file"""
@@ -28,7 +49,9 @@ def createTempFile(sourceFileName,password,tempFileName):
     return ERROR_SUCCESS
 
 def openExcelFile(sourceFileName):
-    """ Open an excel file and return the file object"""
+    """ Open an excel file and return the file object
+    Args: sourceFileName (string) 
+    Return: Directory with file error code and object if success"""
     print ("+Fn: openSourceFile",sourceFileName)
     if(not os.path.exists(sourceFileName)):
         print("Error [openExcelFile]: Source file not found")
