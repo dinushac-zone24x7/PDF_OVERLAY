@@ -5,6 +5,6 @@ Test Process:
 Under development
 
 Test Passwords:
-(1) EMP01 - per****
-(2) PAY01 - sal****
+(1) EMP01 - perdata
+(2) PAY01 - saldata
 (3) TEMPLATE - NO PASSWORD
