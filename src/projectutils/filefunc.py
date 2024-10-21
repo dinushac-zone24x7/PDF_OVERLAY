@@ -8,7 +8,7 @@ import msoffcrypto
 import openpyxl
 import os
 import json
-from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN
+from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN, ERROR_OPEN_FAIL
 
 # Test Passwords: (1) EMP01 - perdata (2) PAY01 - saldata (3) TEMPLATE - NO PASSWORD
 
@@ -20,8 +20,8 @@ def saveSessionData (sessionFile, pdfFileName, templateFileName, fileObjectList)
         "sourceFiles": []  # This will store file-specific settings
     }
     for sourceFile in fileObjectList:
-        print(sourceFile["name"], sourceFile["altPath"])
-        settings["sourceFiles"].append({"name": sourceFile["name"], "altPath" : sourceFile["altPath"]})
+        print(sourceFile["name"])
+        settings["sourceFiles"].append({"name": sourceFile["name"], "path": sourceFile["path"]})
     with open(sessionFile, 'w') as f:
         json.dump(settings, f, indent=4)
 
@@ -35,18 +35,22 @@ def loadSessionData (sessionFile):
 
 def createTempFile(sourceFileName,password,tempFileName):
     """ create a temp data file from a locked excel file"""
-    print("Fn: createTempFile", sourceFileName,password,tempFileName)
+    print("Fn: createTempFile", sourceFileName,"==>",tempFileName)
     #check if the source file is there
     if(not os.path.exists(sourceFileName)):
         print("Error [createTempFile]: Source file not found")
         return ERROR_FILE_NOT_FOUND # error 
-    with open(sourceFileName, 'rb') as file:
-        officeFile = msoffcrypto.OfficeFile(file)
-        officeFile.load_key(password=password)  # Provide the password
-        # Decrypt the file and save it as a temporary file
-        with open(tempFileName, 'wb') as decryptedFile:
-            officeFile.decrypt(decryptedFile)
-    return ERROR_SUCCESS
+    try:            
+        with open(sourceFileName, 'rb') as file:
+            officeFile = msoffcrypto.OfficeFile(file)
+            officeFile.load_key(password=password)  # Provide the password
+            # Decrypt the file and save it as a temporary file
+            with open(tempFileName, 'wb') as decryptedFile:
+                officeFile.decrypt(decryptedFile)
+        return ERROR_SUCCESS
+    except Exception as e:
+        print(f"Error: {e}")
+        return ERROR_OPEN_FAIL
 
 def openExcelFile(sourceFileName):
     """ Open an excel file and return the file object
@@ -54,7 +58,7 @@ def openExcelFile(sourceFileName):
     Return: Directory with file error code and object if success"""
     print ("+Fn: openSourceFile",sourceFileName)
     if(not os.path.exists(sourceFileName)):
-        print("Error [openExcelFile]: Source file not found")
+        print("Fn [openExcelFile]: Source file not found")
         return {"error": ERROR_FILE_NOT_FOUND, "object": None} # error
     else:
         try:
