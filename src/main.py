@@ -15,7 +15,9 @@ from projectutils.filefunc import saveSessionData, loadSessionData
 from projectutils.pdfFunc import addOverlayToPdf
 
 def getSessionData(argv):
-    """Get the session data including source file names"""
+    """ Get the session data including source file names
+    Args:   argv (list) command line arguments list
+    Returns: (directory) ordered list of stored data """
     sessionData = {"error": ERROR_SUCCESS, "rootFolder":None, "sessionFileName": None, "pdfFileName": None,"templateFileName": None,"sourceFiles": []}
     sessionData["rootFolder"] = os.path.dirname(os.path.abspath(argv[0]))
     if len(argv) < 2:
@@ -25,7 +27,7 @@ def getSessionData(argv):
         #get the template file name from user
         sessionData["templateFileName"] = getExcelFileName("Open Template",sessionData["rootFolder"])
     else:
-        sessionData["sessionFileName"] = "argv[1]"
+        sessionData["sessionFileName"] = argv[1]
         print("Using Session File => ", sessionData["sessionFileName"])
         savedSession = loadSessionData(sessionData["sessionFileName"])
         if isinstance(savedSession,dict):
@@ -35,6 +37,17 @@ def getSessionData(argv):
         else:
             sessionData["error"] = ERROR_UNKNOWN
     return sessionData
+
+def getSourcePath (sourceFile, sessionData):
+    """Get stored path for a given source file
+    Args:   sourceFile (string) file name
+            sessionData (directory) stored data retrieved from session file
+    Returns: (string) stored file path or default path"""
+    for fileData in sessionData["sourceFiles"]:
+        if sourceFile == fileData["name"]:
+            return fileData["path"]
+    return sessionData["rootFolder"]
+
 
 def update_message(messageHolder, action, message, isResetId):
     """Update the message in the holder (first element of the list)."""
@@ -127,14 +140,18 @@ def main():
     fileObjectList = []
     tempFileIndex = 1 #Keep track on files
     for sourceFile in fileNameList:
-        sourceFileFullPath = os.path.join(sessionData["rootFolder"],sourceFile)
+        #create the variable to save the file path
+        sourceFilePath = getSourcePath(sourceFile, sessionData)
+        sourceFileFullPath = os.path.join(sourceFilePath,sourceFile)
         while(1):
             returnValue = openExcelFile(sourceFileFullPath)
             if ERROR_SUCCESS == returnValue["error"]:
-                fileObjectList.append({"name": sourceFile, "object": returnValue["object"]})
+                fileObjectList.append({"name": sourceFile, "path": sourceFilePath, "object": returnValue["object"]})
                 break
             elif ERROR_FILE_NOT_FOUND == returnValue["error"]:
                 sourceFileFullPath = getExcelFileName(f"Open {sourceFile}",sessionData["rootFolder"])
+                #update the source file path we got from user
+                sourceFilePath = os.path.dirname(os.path.abspath(sourceFileFullPath))
                 continue
             elif ERROR_FILE_ENCRYPTED == returnValue["error"]:
                 password = getPassword(sourceFile)
@@ -149,7 +166,7 @@ def main():
             else:
                 return ERROR_UNKNOWN
     #save the settings
-    sessionData["sessionFileName"] = "session.json"
+    sessionData["sessionFileName"] = os.path.join(sessionData["rootFolder"],"session.json")
     if not sessionData["sessionFileName"] == None:
         #save the session.
         saveSessionData(sessionData["sessionFileName"], sessionData["pdfFileName"], sessionData["templateFileName"], fileObjectList)

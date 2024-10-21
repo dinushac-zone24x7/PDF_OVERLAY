@@ -20,8 +20,8 @@ def saveSessionData (sessionFile, pdfFileName, templateFileName, fileObjectList)
         "sourceFiles": []  # This will store file-specific settings
     }
     for sourceFile in fileObjectList:
-        print(sourceFile["name"], sourceFile["altPath"])
-        settings["sourceFiles"].append({"name": sourceFile["name"], "altPath" : sourceFile["altPath"]})
+        print(sourceFile["name"])
+        settings["sourceFiles"].append({"name": sourceFile["name"], "path": sourceFile["path"]})
     with open(sessionFile, 'w') as f:
         json.dump(settings, f, indent=4)
 
