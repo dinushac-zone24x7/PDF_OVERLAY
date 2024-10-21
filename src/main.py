@@ -2,7 +2,6 @@ import threading
 import time
 import sys
 import os
-import json
 from constants.templatedata import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
 from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN, ERROR_ITEM_NOT_FOUND, ERROR_GENERAL_FAILIURE
 from constants.pdfData import PDF_FIRST_PAGE, getPdfPage
@@ -30,7 +29,7 @@ def getSessionData(argv):
         print("Using Session File => ", sessionData["sessionFileName"])
         savedSession = loadSessionData(sessionData["sessionFileName"])
         if isinstance(savedSession,dict):
-            sessionData["pdfFileName"] = savedSession["pdfFileName"]
+            sessionData["pdfFileName"] = savedSession["pdfFileName"] 
             sessionData["templateFileName"] = savedSession["templateFileName"]
             sessionData["sourceFiles"] = savedSession["sourceFiles"]
         else:
@@ -135,7 +134,7 @@ def main():
                 fileObjectList.append({"name": sourceFile, "object": returnValue["object"]})
                 break
             elif ERROR_FILE_NOT_FOUND == returnValue["error"]:
-                sourceFileFullPath = getExcelFileName(f"Open {sourceFile}",TEMPLATE_FOLDER_NAME)
+                sourceFileFullPath = getExcelFileName(f"Open {sourceFile}",sessionData["rootFolder"])
                 continue
             elif ERROR_FILE_ENCRYPTED == returnValue["error"]:
                 password = getPassword(sourceFile)
@@ -150,6 +149,7 @@ def main():
             else:
                 return ERROR_UNKNOWN
     #save the settings
+    sessionData["sessionFileName"] = "session.json"
     if not sessionData["sessionFileName"] == None:
         #save the session.
         saveSessionData(sessionData["sessionFileName"], sessionData["pdfFileName"], sessionData["templateFileName"], fileObjectList)
