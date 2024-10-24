@@ -25,3 +25,4 @@ venv/
 
 #project specific files
 ~temp~*
+session.json

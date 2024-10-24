@@ -10,7 +10,7 @@ import re
 
 from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_NULL_STRING, ERROR_FILE_NOT_FOUND
 from constants.templatedata import REC_COL_INDEX, REC_COL_KEY, REC_COL_STR_ID
-from constants.templatedata import TEMP_COL_INDEX, TEMP_COL_NAME, TEMP_COL_CONTENT, TEMP_COL_LOC_X, TEMP_COL_LOC_Y
+from constants.templatedata import TEMP_COL_INDEX, TEMP_COL_NAME, TEMP_COL_CONTENT, TEMP_COL_LOC_X, TEMP_COL_LOC_Y,TEMP_COL_PARAM
 from constants.templatedata import TEMP_DATA_TYPE, TEMP_DATA_FILE_NAME, TEMP_DATA_IMD_TEXT, TEMP_DATA_FILE_SHEET, TEMP_DATA_FILE_COL_KEY, TEMP_DATA_FILE_COL_DATA
 from constants.templatedata import TEMP_MIN_STR_DATA_LENGTH
 
@@ -114,6 +114,7 @@ def loadTemplateData(templateFile,sheetName):
         if(not (dataString.startswith('<') and dataString.endswith('>') and len(dataString) > TEMP_MIN_STR_DATA_LENGTH)):
             print("Error [loadTemplateData]: Data Error at Index : ",rowIndex)
             break
+        paramData = validateParams(str(overlays[TEMP_COL_PARAM].value))
         #process the file data. Get all the data points to a list
         data = re.findall(r'<(.*?)>',dataString)
         #check the item 2, File locked
@@ -123,7 +124,8 @@ def loadTemplateData(templateFile,sheetName):
             textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value), 
                                     "text":{ "string": str(data[TEMP_DATA_IMD_TEXT]), 
                                             "x": overlays[TEMP_COL_LOC_X].value, 
-                                            "y": overlays[TEMP_COL_LOC_Y].value}})
+                                            "y": overlays[TEMP_COL_LOC_Y].value},
+                                    "param": paramData})
         elif "!F" == data[TEMP_DATA_TYPE]:
             print(rowIndex, "overlay type > From file => ",data[TEMP_DATA_FILE_NAME])
             #save the extended data
@@ -131,16 +133,46 @@ def loadTemplateData(templateFile,sheetName):
                                     "text":{ "string": None, 
                                             "x": overlays[TEMP_COL_LOC_X].value, 
                                             "y": overlays[TEMP_COL_LOC_Y].value},
-                                    "file" : {"name": str(data[TEMP_DATA_FILE_NAME]), 
+                                    "file":{"name": str(data[TEMP_DATA_FILE_NAME]), 
                                                 "sheet": str(data[TEMP_DATA_FILE_SHEET]), 
                                                 "primeryKey": data[TEMP_DATA_FILE_COL_KEY], 
-                                                "value": data[TEMP_DATA_FILE_COL_DATA]}})
+                                                "value": data[TEMP_DATA_FILE_COL_DATA]},
+                                    "param": paramData})
         else:
             print(rowIndex, "Error: undefined overlay type : ", data[TEMP_DATA_TYPE])
             break
     # Data store is done. return
     print("- Fn: loadTemplateData")
     return textOverlayList
+
+
+def validateParams(paramString):
+    """ Get the param data from the file and break it down to param list.
+        return: None if there is no param data."""
+    print("+Fn validateParams (", paramString, ")")
+    params = {}
+    # Use a regular expression to extract all the <key=value> pairs
+    pattern = r"<(.*?)=(.*?)>"
+    matches = re.findall(pattern, paramString)
+    if len(matches) == 0:
+        return None
+    # Iterate over each match and add it to the dictionary
+    for key, value in matches:
+        # Try to convert value to int or float, if applicable
+        try:
+            # Convert to float if the value has a decimal point
+            if '.' in value:
+                params[key] = float(value)
+            # Otherwise, try converting to an int
+            elif value.isdigit():
+                params[key] = int(value)
+            else:
+                params[key] = value
+        except ValueError:
+            params[key] = value  # Keep the original string if conversion fails
+    return params
+
+
 
 def getFilesFromOverlayList(textOverlayList):
     """ Returns a unique list of file names in the overlay 

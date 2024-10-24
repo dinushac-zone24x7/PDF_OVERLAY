@@ -10,7 +10,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, legal, A4
 from reportlab.pdfgen.textobject import PDFTextObject 
 from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_LONG_TEXT
-from constants.pdfData import PDF_FIRST_PAGE, getPdfPage, PDF_DEFAULT_FONT_SIZE, PDF_DEFAULT_FONT, PDF_DEFAULT_LEADING
+from constants.pdfData import PDF_FIRST_PAGE, PDF_DEFAULT_LINE_SPACE, PDF_DEFAULT_LINE_SPACE_FACTOR
 
 def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList):
     """ Create a new PDF from PdfTemplateName, with overlay text. Please note the output
@@ -28,9 +28,11 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
     #process multiline if any
     for overlay in pdfOverlayList :
         print(overlay["x"], overlay["y"], overlay["string"])
-        print(overlay["processFunc"], overlay["paramList"], overlay["font"], overlay["fontSize"], overlay["lineHeight"])
+        print(overlay["processFunc"], overlay["paramList"], overlay["font"], overlay["fontSize"], overlay["lineSpace"])
         #process the text Line
-        textObj = getTextObj(overlayCanvas,overlay["string"],overlay["x"], overlay["y"], constWidth, {"width": 200, "maxLines": 4}, overlay["font"], overlay["fontSize"],overlay["lineHeight"])
+        overlay["processFunc"] = constWidth
+        overlay["paramList"] = {"width":200, "maxLines": 2}
+        textObj = getTextObj(overlayCanvas,overlay["string"],overlay["x"], overlay["y"], overlay["processFunc"], overlay["paramList"], overlay["font"], overlay["fontSize"],overlay["lineSpace"])
         if not isinstance(textObj, PDFTextObject):
             print("ERROR [- Fn addOverlayToPdf]: Can not find the text Object: Bad arguments")
             return ERROR_UNKNOWN
@@ -66,31 +68,50 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
     print("-Fn addOverlayToPdf")
     return ERROR_SUCCESS
 
-def getTextObj(canvas,text, startX, startY, processFunc, paramList, font, fontSize,lineHeight):
+def getTextObj(canvas,text, startX, startY, processFunc, paramList, font, fontSize,lineSpace):
     """ returns a text object with the data given. The text object has the capability of 
         holding multiple lines with different formats."""
     print("Fn getTextLine")
-    if not lineHeight:
-        #defince the lineHeight      
-        lineHeight = fontSize * 1.2
-    #Breaks the text in to lines and adjust font for each line based on rules
-    textLines = processFunc(canvas,text,font, fontSize, paramList)
-    if not isinstance(textLines,list):
-        print ("ERROR [getTextObj]. Can not print emplty line")
-        return ERROR_UNKNOWN
+    textLines = []
+    lineSpace = getLineHeight(fontSize, lineSpace)
+    if None == processFunc:
+        print("[addOverlayToPdf] No extra text proccesisng")
+        textLines.append({"text": (text), "fontSize": fontSize, "lineSpace": lineSpace, "set_cursor": None})
+    else:
+        #Breaks the text in to lines and adjust font for each line based on rules
+        print("[addOverlayToPdf] Call text proccesing")
+        textLines = processFunc(canvas,text,font, fontSize, paramList)
+        if not isinstance(textLines,list):
+            print ("ERROR [getTextObj]. Can not print emplty line")
+            return ERROR_UNKNOWN
     textObj = canvas.beginText(startX, startY)
     #store text lines based on rules
     for textLine in textLines:
         if isinstance(textLine["fontSize"],int):
             textObj.setFont(font,textLine["fontSize"])
-        if isinstance(textLine["lineHeight"],int):
-            lineHeight = textLine["lineHeight"]
+        if isinstance(textLine["lineSpace"],int):
+            lineSpace = textLine["lineSpace"]
         if isinstance(textLine["set_cursor"],int):
-            textObj.moveCursor(textLine["set_cursor"], lineHeight)
+            textObj.moveCursor(textLine["set_cursor"], lineSpace)
         else:
             print("[getTextObj] not moving curser.!")
         textObj.textOut(textLine["text"])
     return textObj
+
+
+def getLineHeight(fontSize, lineSpace):
+    """ Retuens the lince ppace based on given rules. Value is in points"""
+    if not fontSize:
+        return PDF_DEFAULT_LINE_SPACE
+    if not lineSpace:
+        lineSpace = fontSize * PDF_DEFAULT_LINE_SPACE_FACTOR
+    elif isinstance(lineSpace,float) or isinstance(lineSpace,int):
+        return lineSpace
+    elif lineSpace.endswith('X'):
+        return float(lineSpace[:-1]) * fontSize
+    else:
+        return fontSize * PDF_DEFAULT_LINE_SPACE_FACTOR
+        
 
 def constWidth(canvas, text, font, fontSize, paramList):
     """ Fuction to alter the text """
@@ -98,7 +119,7 @@ def constWidth(canvas, text, font, fontSize, paramList):
     maxLines = paramList["maxLines"]
     textLines = []
     # Function to get the width of the text
-    def getTextWidth(text, font_size):
+    def getTextWidth(text, fontSize):
         return canvas.stringWidth(text, font, fontSize)
         # Try reducing font size until the text fits
     while True:
@@ -114,14 +135,14 @@ def constWidth(canvas, text, font, fontSize, paramList):
             if getTextWidth(testLine, fontSize) <= width:
                 currentLine = testLine
             else:
-                textLines.append({"text": (currentLine), "fontSize": fontSize, "lineHeight": None, "set_cursor": set_cursor})
+                textLines.append({"text": (currentLine), "fontSize": fontSize, "lineSpace": None, "set_cursor": set_cursor})
                 #we need to return cursor to 0 from next line onwards
                 set_cursor = 0
                 currentLine = word
 
         # Append the last line, regardless of how many lines have been created
         if currentLine:
-            textLines.append({"text": (currentLine), "fontSize": fontSize, "lineHeight": None, "set_cursor": set_cursor})
+            textLines.append({"text": (currentLine), "fontSize": fontSize, "lineSpace": None, "set_cursor": set_cursor})
 
         # Check if the number of lines is less than or equal to the allowed number of lines
         if len(textLines) <= maxLines:

@@ -4,7 +4,7 @@ import sys
 import os
 from constants.templatedata import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
 from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN, ERROR_ITEM_NOT_FOUND, ERROR_GENERAL_FAILIURE
-from constants.pdfData import PDF_FIRST_PAGE, getPdfPage
+from constants.pdfData import PDF_FIRST_PAGE, PDF_DEFAULT_FONT, PDF_DEFAULT_FONT_SIZE, PDF_DEFAULT_LINE_SPACE
 from projectutils.guifunc import WINDOW_QUIT # Import GUI constants, Window
 from projectutils.guifunc import MESSAGE_NEW, MESSAGE_ADD, MESSAGE_CLEAR # Import GUI constants Message
 from projectutils.guifunc import showStatus, getExcelFileName, getPassword, getPdfFileName  # Import GUI functions
@@ -12,7 +12,7 @@ from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList,
 from projectutils.businessfunc import getStringFromFileObject, concatString
 from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
 from projectutils.filefunc import saveSessionData, loadSessionData
-from projectutils.pdfFunc import addOverlayToPdf, PDF_DEFAULT_FONT, PDF_DEFAULT_FONT_SIZE, PDF_DEFAULT_LEADING
+from projectutils.pdfFunc import addOverlayToPdf
 
 def getSessionData(argv):
     """ Get the session data including source file names
@@ -77,11 +77,12 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
         overlayName = textOverlay["name"]
         if None == overlayName:
             print("Error - Bad overlay")
-            exit (ERROR_UNKNOWN)
+            return ERROR_UNKNOWN
         overlayText = textOverlay["text"]
         ovelayLocX = overlayText["x"]
         ovelayLocY = overlayText["y"]
         overlayString = overlayText["string"]
+        overlayParams = textOverlay["param"]
         if None == overlayString:
             #Not an immidiate string
             print("Not Immidiate string")
@@ -95,7 +96,7 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
             if not isinstance(overlayString, str):
                 # Error returned by the function
                 print("ERROR: Can not find the primery key.!")
-                return (ERROR_ITEM_NOT_FOUND)
+                return ERROR_ITEM_NOT_FOUND
         else:
             #an immidiate string
             print("Immidiate string")
@@ -109,11 +110,11 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
                                    "string":overlayString, 
                                    "x": ovelayLocX, 
                                    "y": ovelayLocY,
-                                   "processFunc": None, 
-                                   "paramList": None, 
-                                   "font": PDF_DEFAULT_FONT,
-                                   "fontSize": PDF_DEFAULT_FONT_SIZE,
-                                   "lineHeight": PDF_DEFAULT_LEADING})
+                                   "processFunc": None if (None == overlayParams or not "Func" in overlayParams) else overlayParams["Func"], 
+                                   "paramList": None if (None == overlayParams or not "Param" in overlayParams) else overlayParams["Param"], 
+                                   "font": PDF_DEFAULT_FONT if (None == overlayParams or not "Font" in  overlayParams) else overlayParams["Font"],
+                                   "fontSize": PDF_DEFAULT_FONT_SIZE if (None == overlayParams or not "FontSize" in overlayParams) else overlayParams["FontSize"],
+                                   "lineSpace": PDF_DEFAULT_LINE_SPACE if (None == overlayParams or not "LineSpace" in overlayParams) else overlayParams["LineSpace"]})
 
     update_message(messageHolder, MESSAGE_ADD, "Creating PDF File ",False)
     if ERROR_SUCCESS == addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList):
