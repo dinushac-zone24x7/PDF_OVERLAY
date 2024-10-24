@@ -12,7 +12,7 @@ from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList,
 from projectutils.businessfunc import getStringFromFileObject, concatString
 from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
 from projectutils.filefunc import saveSessionData, loadSessionData
-from projectutils.pdfFunc import addOverlayToPdf
+from projectutils.pdfFunc import addOverlayToPdf, PDF_DEFAULT_FONT, PDF_DEFAULT_FONT_SIZE, PDF_DEFAULT_LEADING
 
 def getSessionData(argv):
     """ Get the session data including source file names
@@ -105,12 +105,23 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
             concatString(pdfOverlayList,overlayName,overlayString)
         else:
             print("overlayString ["+ overlayName +"] = "+ str(overlayString), ovelayLocX, ovelayLocY)
-            pdfOverlayList.append({"name":overlayName,"string":overlayString, "x": ovelayLocX, "y": ovelayLocY})
+            pdfOverlayList.append({"name":overlayName,
+                                   "string":overlayString, 
+                                   "x": ovelayLocX, 
+                                   "y": ovelayLocY,
+                                   "processFunc": None, 
+                                   "paramList": None, 
+                                   "font": PDF_DEFAULT_FONT,
+                                   "fontSize": PDF_DEFAULT_FONT_SIZE,
+                                   "lineHeight": PDF_DEFAULT_LEADING})
 
     update_message(messageHolder, MESSAGE_ADD, "Creating PDF File ",False)
-    addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList)
-    print("created PDF", outputFileName)
-    update_message(messageHolder, MESSAGE_ADD, "Done..! ",False)
+    if ERROR_SUCCESS == addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList):
+        print("created PDF", outputFileName)
+        update_message(messageHolder, MESSAGE_ADD, "Done..! ",False)
+    else:
+        print("ERRROR [processRecord] PDF file creation error.")
+        update_message(messageHolder, MESSAGE_ADD, "PDF file creation error",False)
     update_message(messageHolder, WINDOW_QUIT, None,False)  # This should close the status window
     return ERROR_SUCCESS
 

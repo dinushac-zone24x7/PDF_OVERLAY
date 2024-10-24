@@ -8,8 +8,9 @@ from PyPDF2 import PdfWriter, PdfReader
 import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, legal, A4
-from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN
-from constants.pdfData import PDF_FIRST_PAGE, getPdfPage
+from reportlab.pdfgen.textobject import PDFTextObject 
+from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_LONG_TEXT
+from constants.pdfData import PDF_FIRST_PAGE, getPdfPage, PDF_DEFAULT_FONT_SIZE, PDF_DEFAULT_FONT, PDF_DEFAULT_LEADING
 
 def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList):
     """ Create a new PDF from PdfTemplateName, with overlay text. Please note the output
@@ -24,9 +25,17 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
     #create a canvas and add the overlay data
     overlayByteIO = io.BytesIO()
     overlayCanvas = canvas.Canvas(overlayByteIO, pagesize=letter)
+    #process multiline if any
     for overlay in pdfOverlayList :
         print(overlay["x"], overlay["y"], overlay["string"])
-        overlayCanvas.drawString(overlay["x"], overlay["y"], overlay["string"])
+        print(overlay["processFunc"], overlay["paramList"], overlay["font"], overlay["fontSize"], overlay["lineHeight"])
+        #process the text Line
+        textObj = getTextObj(overlayCanvas,overlay["string"],overlay["x"], overlay["y"], constWidth, {"width": 200, "maxLines": 4}, overlay["font"], overlay["fontSize"],overlay["lineHeight"])
+        if not isinstance(textObj, PDFTextObject):
+            print("ERROR [- Fn addOverlayToPdf]: Can not find the text Object: Bad arguments")
+            return ERROR_UNKNOWN
+        else:
+            overlayCanvas.drawText(textObj)
     overlayCanvas.save()
     #move to the beginning of the StringIO buffer
     overlayByteIO.seek(0)
@@ -52,7 +61,75 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
         outPutFile.close()
     except Exception as e:
         print(f"Error: {e}")
+        print("ERROR [- Fn addOverlayToPdf]")
         return ERROR_UNKNOWN
     print("-Fn addOverlayToPdf")
     return ERROR_SUCCESS
 
+def getTextObj(canvas,text, startX, startY, processFunc, paramList, font, fontSize,lineHeight):
+    """ returns a text object with the data given. The text object has the capability of 
+        holding multiple lines with different formats."""
+    print("Fn getTextLine")
+    if not lineHeight:
+        #defince the lineHeight      
+        lineHeight = fontSize * 1.2
+    #Breaks the text in to lines and adjust font for each line based on rules
+    textLines = processFunc(canvas,text,font, fontSize, paramList)
+    if not isinstance(textLines,list):
+        print ("ERROR [getTextObj]. Can not print emplty line")
+        return ERROR_UNKNOWN
+    textObj = canvas.beginText(startX, startY)
+    #store text lines based on rules
+    for textLine in textLines:
+        if isinstance(textLine["fontSize"],int):
+            textObj.setFont(font,textLine["fontSize"])
+        if isinstance(textLine["lineHeight"],int):
+            lineHeight = textLine["lineHeight"]
+        if isinstance(textLine["set_cursor"],int):
+            textObj.moveCursor(textLine["set_cursor"], lineHeight)
+        else:
+            print("[getTextObj] not moving curser.!")
+        textObj.textOut(textLine["text"])
+    return textObj
+
+def constWidth(canvas, text, font, fontSize, paramList):
+    """ Fuction to alter the text """
+    width = paramList["width"]
+    maxLines = paramList["maxLines"]
+    textLines = []
+    # Function to get the width of the text
+    def getTextWidth(text, font_size):
+        return canvas.stringWidth(text, font, fontSize)
+        # Try reducing font size until the text fits
+    while True:
+        # Set the font to the current size
+        canvas.setFont(font, fontSize)
+        words = text.split(' ')
+        set_cursor = None
+        currentLine = ""
+
+        # Loop through words to form lines that fit within the width
+        for word in words:
+            testLine = currentLine + (" " + word if currentLine else word)
+            if getTextWidth(testLine, fontSize) <= width:
+                currentLine = testLine
+            else:
+                textLines.append({"text": (currentLine), "fontSize": fontSize, "lineHeight": None, "set_cursor": set_cursor})
+                #we need to return cursor to 0 from next line onwards
+                set_cursor = 0
+                currentLine = word
+
+        # Append the last line, regardless of how many lines have been created
+        if currentLine:
+            textLines.append({"text": (currentLine), "fontSize": fontSize, "lineHeight": None, "set_cursor": set_cursor})
+
+        # Check if the number of lines is less than or equal to the allowed number of lines
+        if len(textLines) <= maxLines:
+            break
+
+        # Reduce the font size if the text still doesn't fit
+        fontSize -= 1
+        if fontSize < 6:  # Set a minimum font size limit
+            print ("ERROR [constWidth]. The text line is too long to fit to [" + str(width) + "] pixels x [" + str(maxLines) + "] lines")
+            return ERROR_LONG_TEXT
+    return textLines
