@@ -10,7 +10,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, legal, A4
 from reportlab.pdfgen.textobject import PDFTextObject 
 from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_LONG_TEXT
-from constants.pdfData import PDF_FIRST_PAGE, PDF_DEFAULT_LINE_SPACE, PDF_DEFAULT_LINE_SPACE_FACTOR
+from constants.pdfData import PDF_FIRST_PAGE, PDF_DEFAULT_LINE_SPACE, PDF_DEFAULT_LINE_SPACE_FACTOR, PDF_DEFAULT_FONT, PDF_DEFAULT_FONT_SIZE
 
 def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList):
     """ Create a new PDF from PdfTemplateName, with overlay text. Please note the output
@@ -27,12 +27,13 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
     overlayCanvas = canvas.Canvas(overlayByteIO, pagesize=letter)
     #process multiline if any
     for overlay in pdfOverlayList :
-        print(overlay["x"], overlay["y"], overlay["string"])
-        print(overlay["processFunc"], overlay["paramList"], overlay["font"], overlay["fontSize"], overlay["lineSpace"])
+        #mandatory fields
+        print(overlay["param"]["X"], overlay["param"]["Y"], overlay["string"])
+        overlay = setOptionalParams(overlay)
         #process the text Line
         overlay["processFunc"] = constWidth
         overlay["paramList"] = {"width":200, "maxLines": 2}
-        textObj = getTextObj(overlayCanvas,overlay["string"],overlay["x"], overlay["y"], overlay["processFunc"], overlay["paramList"], overlay["font"], overlay["fontSize"],overlay["lineSpace"])
+        textObj = getTextObj(overlayCanvas,overlay["string"],overlay["param"]["X"], overlay["param"]["Y"], overlay["processFunc"], overlay["paramList"], overlay["param"]["Font"], overlay["param"]["FontSize"],overlay["param"]["lineSpace"])
         if not isinstance(textObj, PDFTextObject):
             print("ERROR [- Fn addOverlayToPdf]: Can not find the text Object: Bad arguments")
             return ERROR_UNKNOWN
@@ -67,6 +68,21 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
         return ERROR_UNKNOWN
     print("-Fn addOverlayToPdf")
     return ERROR_SUCCESS
+
+
+def setOptionalParams(overlay):
+    if not "param" in overlay:
+        return ERROR_UNKNOWN
+    if not "Font" in overlay["param"]:
+        overlay["param"]["Font"] = PDF_DEFAULT_FONT
+    if not "FontSize" in overlay["param"]:
+        overlay["param"]["FontSize"] = PDF_DEFAULT_FONT_SIZE
+    if not "lineSpace" in overlay["param"]:
+        overlay["param"]["lineSpace"] = PDF_DEFAULT_LINE_SPACE
+    if not "Process" in overlay["param"]:
+        overlay["param"]["Process"] = None
+
+    return overlay
 
 def getTextObj(canvas,text, startX, startY, processFunc, paramList, font, fontSize,lineSpace):
     """ returns a text object with the data given. The text object has the capability of 

@@ -10,7 +10,7 @@ import re
 
 from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_NULL_STRING, ERROR_FILE_NOT_FOUND
 from constants.templatedata import REC_COL_INDEX, REC_COL_KEY, REC_COL_STR_ID
-from constants.templatedata import TEMP_COL_INDEX, TEMP_COL_NAME, TEMP_COL_CONTENT, TEMP_COL_LOC_X, TEMP_COL_LOC_Y,TEMP_COL_PARAM
+from constants.templatedata import TEMP_COL_INDEX, TEMP_COL_NAME, TEMP_COL_CONTENT, TEMP_COL_PARAM, TEMP_COL_PRE_PROC
 from constants.templatedata import TEMP_DATA_TYPE, TEMP_DATA_FILE_NAME, TEMP_DATA_IMD_TEXT, TEMP_DATA_FILE_SHEET, TEMP_DATA_FILE_COL_KEY, TEMP_DATA_FILE_COL_DATA
 from constants.templatedata import TEMP_MIN_STR_DATA_LENGTH
 
@@ -115,36 +115,63 @@ def loadTemplateData(templateFile,sheetName):
             print("Error [loadTemplateData]: Data Error at Index : ",rowIndex)
             break
         paramData = validateParams(str(overlays[TEMP_COL_PARAM].value))
-        #process the file data. Get all the data points to a list
-        data = re.findall(r'<(.*?)>',dataString)
+        preprocess = validatePreProc(str(overlays[TEMP_COL_PRE_PROC].value))
+        content = validateContent(dataString)
         #check the item 2, File locked
-        if "!T" == data[TEMP_DATA_TYPE]:
+        if "!T" == content["type"]:
             print(rowIndex, "overlay type > immidiate text")
             #Save immidiate text data
             textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value), 
-                                    "text":{ "string": str(data[TEMP_DATA_IMD_TEXT]), 
-                                            "x": overlays[TEMP_COL_LOC_X].value, 
-                                            "y": overlays[TEMP_COL_LOC_Y].value},
-                                    "param": paramData})
-        elif "!F" == data[TEMP_DATA_TYPE]:
-            print(rowIndex, "overlay type > From file => ",data[TEMP_DATA_FILE_NAME])
+                                    "text": content["string"],
+                                    "param": paramData,
+                                    "preProcess": preprocess})
+        elif "!F" == content["type"]:
+            print(rowIndex, "overlay type > From file => ",content["file"]["name"])
             #save the extended data
             textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value), 
-                                    "text":{ "string": None, 
-                                            "x": overlays[TEMP_COL_LOC_X].value, 
-                                            "y": overlays[TEMP_COL_LOC_Y].value},
-                                    "file":{"name": str(data[TEMP_DATA_FILE_NAME]), 
-                                                "sheet": str(data[TEMP_DATA_FILE_SHEET]), 
-                                                "primeryKey": data[TEMP_DATA_FILE_COL_KEY], 
-                                                "value": data[TEMP_DATA_FILE_COL_DATA]},
-                                    "param": paramData})
+                                    "text": None,
+                                    "file": content["file"], 
+                                    "param": paramData,
+                                    "preProcess": preprocess})
         else:
-            print(rowIndex, "Error: undefined overlay type : ", data[TEMP_DATA_TYPE])
+            print(rowIndex, "Error: undefined overlay type : ", content["type"])
             break
     # Data store is done. return
     print("- Fn: loadTemplateData")
     return textOverlayList
 
+def validateContent(content):
+    data = re.findall(r'<(.*?)>',content)
+    content = {"type": data[TEMP_DATA_TYPE]}
+    content["string"] = data[TEMP_DATA_IMD_TEXT]
+    if(len(data)> 2):
+        fileData = {}
+        content["file"] = fileData
+        fileData["name"] = data[TEMP_DATA_FILE_NAME]
+        fileData["sheet"] = data[TEMP_DATA_FILE_SHEET]
+        fileData["primeryKey"] = data[TEMP_DATA_FILE_COL_KEY]
+        fileData["value"] = data[TEMP_DATA_FILE_COL_DATA]
+    return content
+
+def validatePreProc(paramString):
+    preProc = []
+    # Regular expression to match function calls of the format FuncName(Var1,Var2,...)
+    pattern = r"(\w+)\((.*?)\)"
+    # Find all matches in the input string
+    matches = re.findall(pattern, paramString) 
+    if len(matches) == 0:
+        print("[validatePreProc] no pre - process list.")
+        return None
+    # Iterate over each match and build the dictionary
+    for func, params in matches:
+        # Split the parameters by comma, remove whitespace, and filter out empty strings
+        param_list = [param.strip() for param in params.split(',') if param.strip()]        
+        # Append the dictionary to the preprocess list
+        preProc.append({
+            "func": func,
+            "params": param_list
+        })
+    return preProc
 
 def validateParams(paramString):
     """ Get the param data from the file and break it down to param list.
@@ -171,7 +198,6 @@ def validateParams(paramString):
         except ValueError:
             params[key] = value  # Keep the original string if conversion fails
     return params
-
 
 
 def getFilesFromOverlayList(textOverlayList):

@@ -78,10 +78,7 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
         if None == overlayName:
             print("Error - Bad overlay")
             return ERROR_UNKNOWN
-        overlayText = textOverlay["text"]
-        ovelayLocX = overlayText["x"]
-        ovelayLocY = overlayText["y"]
-        overlayString = overlayText["string"]
+        overlayString = textOverlay["text"]
         overlayParams = textOverlay["param"]
         if None == overlayString:
             #Not an immidiate string
@@ -100,22 +97,16 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
         else:
             #an immidiate string
             print("Immidiate string")
+        #check if we have preproc
+        if not None == textOverlay["preProcess"]:
+            overlayString = preprocess(overlayString,textOverlay["preProcess"])
+        #is this a text to add to an existing line?
         if overlayName.startswith("!<CONCAT>"):
-            #concatnate
             print("* => Concatnate")
             concatString(pdfOverlayList,overlayName,overlayString)
         else:
-            print("overlayString ["+ overlayName +"] = "+ str(overlayString), ovelayLocX, ovelayLocY)
-            pdfOverlayList.append({"name":overlayName,
-                                   "string":overlayString, 
-                                   "x": ovelayLocX, 
-                                   "y": ovelayLocY,
-                                   "processFunc": None if (None == overlayParams or not "Func" in overlayParams) else overlayParams["Func"], 
-                                   "paramList": None if (None == overlayParams or not "Param" in overlayParams) else overlayParams["Param"], 
-                                   "font": PDF_DEFAULT_FONT if (None == overlayParams or not "Font" in  overlayParams) else overlayParams["Font"],
-                                   "fontSize": PDF_DEFAULT_FONT_SIZE if (None == overlayParams or not "FontSize" in overlayParams) else overlayParams["FontSize"],
-                                   "lineSpace": PDF_DEFAULT_LINE_SPACE if (None == overlayParams or not "LineSpace" in overlayParams) else overlayParams["LineSpace"]})
-
+            print("overlayString ["+ overlayName +"] = "+ str(overlayString))
+            pdfOverlayList.append({"name":overlayName,"string":overlayString,"param":overlayParams})
     update_message(messageHolder, MESSAGE_ADD, "Creating PDF File ",False)
     if ERROR_SUCCESS == addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList):
         print("created PDF", outputFileName)
@@ -202,6 +193,10 @@ def main():
     #we are done, so delete the temp files.  
     removeFiles(tempFileList)
     return ERROR_SUCCESS
+
+def preprocess(text,processList):
+    print("+Fn preprocess", text,processList)
+    return text+"101"
 
 
 if __name__ == "__main__":
