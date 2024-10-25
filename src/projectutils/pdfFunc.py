@@ -32,7 +32,7 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
         print(overlay["param"]["X"], overlay["param"]["Y"], overlay["string"])
         overlay = setOptionalParams(overlay)
         #process the text Line
-        textObj = getTextObj(overlayCanvas,overlay["string"],overlay["param"]["X"], overlay["param"]["Y"], overlay["param"]["Function"], overlay["param"]["Font"], overlay["param"]["FontSize"],overlay["param"]["lineSpace"])
+        textObj = getTextObj(overlayCanvas,overlay["string"],overlay["param"])
         if not isinstance(textObj, PDFTextObject):
             print("ERROR [- Fn addOverlayToPdf]: Can not find the text Object: Bad arguments")
             return ERROR_UNKNOWN
@@ -78,34 +78,34 @@ def setOptionalParams(overlay):
         overlay["param"]["Font"] = PDF_DEFAULT_FONT
     if not "FontSize" in overlay["param"]:
         overlay["param"]["FontSize"] = PDF_DEFAULT_FONT_SIZE
-    if not "lineSpace" in overlay["param"]:
-        overlay["param"]["lineSpace"] = PDF_DEFAULT_LINE_SPACE
+    if not "LineSpace" in overlay["param"]:
+        overlay["param"]["LineSpace"] = PDF_DEFAULT_LINE_SPACE
     if not "Function" in overlay["param"]:
         overlay["param"]["Function"] = None
 
     return overlay
 
-def getTextObj(canvas,text, startX, startY, process, font, fontSize,lineSpace):
+def getTextObj(canvas,text, params):
     """ returns a text object with the data given. The text object has the capability of 
         holding multiple lines with different formats."""
     print("Fn getTextLine")
     textLines = []
-    lineSpace = getLineHeight(fontSize, lineSpace)
-    if None == process:
+    lineSpace = getLineHeight(params["FontSize"], params["LineSpace"])
+    if None == params["Function"]:
         print("[addOverlayToPdf] No extra text proccesisng")
-        textLines.append({"text": (text), "fontSize": fontSize, "lineSpace": lineSpace, "set_cursor": None})
+        textLines.append({"text": (text), "fontSize": params["FontSize"], "lineSpace": lineSpace, "set_cursor": None})
     else:
         #Breaks the text in to lines and adjust font for each line based on rules
         print("[addOverlayToPdf] Call text proccesing")
-        textLines = processFunc(canvas,text,font, fontSize, process)
+        textLines = processFunc(canvas,text, params["Font"], params["FontSize"], params["Function"])
         if not isinstance(textLines,list):
             print ("ERROR [getTextObj]. Can not print emplty line")
             return ERROR_UNKNOWN
-    textObj = canvas.beginText(startX, startY)
+    textObj = canvas.beginText( params["X"],  params["Y"])
     #store text lines based on rules
     for textLine in textLines:
         if isinstance(textLine["fontSize"],int):
-            textObj.setFont(font,textLine["fontSize"])
+            textObj.setFont(params["Font"],textLine["fontSize"])
         if isinstance(textLine["lineSpace"],int):
             lineSpace = textLine["lineSpace"]
         if isinstance(textLine["set_cursor"],int):
