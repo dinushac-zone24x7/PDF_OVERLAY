@@ -9,7 +9,7 @@ from projectutils.guifunc import WINDOW_QUIT # Import GUI constants, Window
 from projectutils.guifunc import MESSAGE_NEW, MESSAGE_ADD, MESSAGE_CLEAR # Import GUI constants Message
 from projectutils.guifunc import showStatus, getExcelFileName, getPassword, getPdfFileName  # Import GUI functions
 from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList, loadRecordIdList
-from projectutils.businessfunc import getStringFromFileObject, concatString
+from projectutils.businessfunc import getStringFromFileObject, concatString, preprocess
 from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
 from projectutils.filefunc import saveSessionData, loadSessionData
 from projectutils.pdfFunc import addOverlayToPdf
@@ -78,18 +78,10 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
         if None == overlayName:
             print("Error - Bad overlay")
             return ERROR_UNKNOWN
-        overlayString = textOverlay["text"]
-        overlayParams = textOverlay["param"]
-        if None == overlayString:
+        if "File" == textOverlay["content"]["Type"]:
             #Not an immidiate string
-            print("Not Immidiate string")
-            fileInfo = textOverlay["file"]
-            fileName = fileInfo["name"]
-            fileSheetName = fileInfo["sheet"]
-            primeryKeyCol = fileInfo["primeryKey"]
-            valueCol = fileInfo["value"]
-            overlayString = getStringFromFileObject(fileName,FileObjectList,fileSheetName,recordID["key"],primeryKeyCol,valueCol)
-            print("Type of overlayString = str ? ",isinstance(overlayString, str))
+            print("Text from File")
+            overlayString = getStringFromFileObject(textOverlay["content"]["File"],FileObjectList,textOverlay["content"]["Sheet"],recordID["key"],textOverlay["content"]["PrimeryKey"],textOverlay["content"]["Value"])
             if not isinstance(overlayString, str):
                 # Error returned by the function
                 print("ERROR: Can not find the primery key.!")
@@ -97,6 +89,7 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
         else:
             #an immidiate string
             print("Immidiate string")
+            overlayString = textOverlay["content"]["Text"]
         #check if we have preproc
         if not None == textOverlay["preProcess"]:
             overlayString = preprocess(overlayString,textOverlay["preProcess"])
@@ -106,7 +99,7 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
             concatString(pdfOverlayList,overlayName,overlayString)
         else:
             print("overlayString ["+ overlayName +"] = "+ str(overlayString))
-            pdfOverlayList.append({"name":overlayName,"string":overlayString,"param":overlayParams})
+            pdfOverlayList.append({"name":overlayName,"string":overlayString,"param":textOverlay["param"]})
     update_message(messageHolder, MESSAGE_ADD, "Creating PDF File ",False)
     if ERROR_SUCCESS == addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList):
         print("created PDF", outputFileName)
@@ -128,7 +121,7 @@ def main():
     recordIDList = loadRecordIdList(sessionData["templateFileName"],RECORD_LIST_SHEET_NAME)
     #get the overlay list
     textOverlayList = loadTemplateData(sessionData["templateFileName"],TEMPLATE_SHEET_NAME)
-    #check errors and exut
+    #check errors and exit
     if isinstance(textOverlayList,int) or  isinstance(recordIDList,int):
         print("ERROR: Check the template file")
         exit(ERROR_GENERAL_FAILIURE)
@@ -193,10 +186,6 @@ def main():
     #we are done, so delete the temp files.  
     removeFiles(tempFileList)
     return ERROR_SUCCESS
-
-def preprocess(text,processList):
-    print("+Fn preprocess", text,processList)
-    return text+"101"
 
 
 if __name__ == "__main__":

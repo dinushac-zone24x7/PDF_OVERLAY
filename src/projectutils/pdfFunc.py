@@ -6,6 +6,7 @@
 
 from PyPDF2 import PdfWriter, PdfReader
 import io
+import re #consider moving to a business function
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, legal, A4
 from reportlab.pdfgen.textobject import PDFTextObject 
@@ -31,9 +32,7 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
         print(overlay["param"]["X"], overlay["param"]["Y"], overlay["string"])
         overlay = setOptionalParams(overlay)
         #process the text Line
-        overlay["processFunc"] = constWidth
-        overlay["paramList"] = {"width":200, "maxLines": 2}
-        textObj = getTextObj(overlayCanvas,overlay["string"],overlay["param"]["X"], overlay["param"]["Y"], overlay["processFunc"], overlay["paramList"], overlay["param"]["Font"], overlay["param"]["FontSize"],overlay["param"]["lineSpace"])
+        textObj = getTextObj(overlayCanvas,overlay["string"],overlay["param"]["X"], overlay["param"]["Y"], overlay["param"]["Function"], overlay["param"]["Font"], overlay["param"]["FontSize"],overlay["param"]["lineSpace"])
         if not isinstance(textObj, PDFTextObject):
             print("ERROR [- Fn addOverlayToPdf]: Can not find the text Object: Bad arguments")
             return ERROR_UNKNOWN
@@ -71,6 +70,8 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
 
 
 def setOptionalParams(overlay):
+    """ Some of the parameters are optional in the template, but
+        mandatory for the textObject. So set them to default"""
     if not "param" in overlay:
         return ERROR_UNKNOWN
     if not "Font" in overlay["param"]:
@@ -79,24 +80,24 @@ def setOptionalParams(overlay):
         overlay["param"]["FontSize"] = PDF_DEFAULT_FONT_SIZE
     if not "lineSpace" in overlay["param"]:
         overlay["param"]["lineSpace"] = PDF_DEFAULT_LINE_SPACE
-    if not "Process" in overlay["param"]:
-        overlay["param"]["Process"] = None
+    if not "Function" in overlay["param"]:
+        overlay["param"]["Function"] = None
 
     return overlay
 
-def getTextObj(canvas,text, startX, startY, processFunc, paramList, font, fontSize,lineSpace):
+def getTextObj(canvas,text, startX, startY, process, font, fontSize,lineSpace):
     """ returns a text object with the data given. The text object has the capability of 
         holding multiple lines with different formats."""
     print("Fn getTextLine")
     textLines = []
     lineSpace = getLineHeight(fontSize, lineSpace)
-    if None == processFunc:
+    if None == process:
         print("[addOverlayToPdf] No extra text proccesisng")
         textLines.append({"text": (text), "fontSize": fontSize, "lineSpace": lineSpace, "set_cursor": None})
     else:
         #Breaks the text in to lines and adjust font for each line based on rules
         print("[addOverlayToPdf] Call text proccesing")
-        textLines = processFunc(canvas,text,font, fontSize, paramList)
+        textLines = processFunc(canvas,text,font, fontSize, process)
         if not isinstance(textLines,list):
             print ("ERROR [getTextObj]. Can not print emplty line")
             return ERROR_UNKNOWN
@@ -129,10 +130,14 @@ def getLineHeight(fontSize, lineSpace):
         return fontSize * PDF_DEFAULT_LINE_SPACE_FACTOR
         
 
-def constWidth(canvas, text, font, fontSize, paramList):
+def processFunc(canvas, text, font, fontSize, function):
     """ Fuction to alter the text """
-    width = paramList["width"]
-    maxLines = paramList["maxLines"]
+#    paramList = parseFunctionString(paramList)
+    if not "SrinkToFit" == function["name"]:
+        print("Error: [processFunc] not a supported Function ")
+        return text
+    width = int(function["param1"])
+    maxLines = int(function["param2"])
     textLines = []
     # Function to get the width of the text
     def getTextWidth(text, fontSize):

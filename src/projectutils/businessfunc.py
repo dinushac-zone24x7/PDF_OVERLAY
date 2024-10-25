@@ -7,6 +7,7 @@
 import openpyxl
 import os
 import re
+from num2words import num2words
 
 from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_NULL_STRING, ERROR_FILE_NOT_FOUND
 from constants.templatedata import REC_COL_INDEX, REC_COL_KEY, REC_COL_STR_ID
@@ -75,7 +76,7 @@ def concatString(pdfOverlayList,overlayName,overlayString):
         if pdfOverlay["name"] == exString:
             #found the matching location
             print ("Concat ["+ overlayString + "] to " + pdfOverlay["name"])
-            pdfOverlay["string"] = pdfOverlay["string"] + overlayString
+            pdfOverlay["string"] = str(pdfOverlay["string"]) + str(overlayString)
     return ERROR_SUCCESS
 
 def loadTemplateData(templateFile,sheetName):
@@ -106,72 +107,33 @@ def loadTemplateData(templateFile,sheetName):
         if( not rowIndex.isdigit()):
             print("Warning [loadTemplateData]: skip Row Index : ", rowIndex)
             continue
-        dataString = str(overlays[TEMP_COL_CONTENT].value)
+        content = str(overlays[TEMP_COL_CONTENT].value)
         #user initiated end of loop.
-        if("None" == dataString):
+        if("None" == content):
             print("Warning [loadTemplateData]: User terminated at Index : ", rowIndex)
             break
-        if(not (dataString.startswith('<') and dataString.endswith('>') and len(dataString) > TEMP_MIN_STR_DATA_LENGTH)):
+        if(not (content.startswith('<') and content.endswith('>') and len(content) > TEMP_MIN_STR_DATA_LENGTH)):
             print("Error [loadTemplateData]: Data Error at Index : ",rowIndex)
             break
-        paramData = validateParams(str(overlays[TEMP_COL_PARAM].value))
-        preprocess = validatePreProc(str(overlays[TEMP_COL_PRE_PROC].value))
-        content = validateContent(dataString)
+        param = validateParams(str(overlays[TEMP_COL_PARAM].value))
+        preprocess = validateParams(str(overlays[TEMP_COL_PRE_PROC].value))
+        content = validateParams(content)
+        textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value), 
+                                "content": content,
+                                "param": param,
+                                "preProcess": preprocess})
         #check the item 2, File locked
-        if "!T" == content["type"]:
-            print(rowIndex, "overlay type > immidiate text")
+        if "Text" == content["Type"]:
+            print(rowIndex, "overlay type > immidiate text =>", content["Text"])
             #Save immidiate text data
-            textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value), 
-                                    "text": content["string"],
-                                    "param": paramData,
-                                    "preProcess": preprocess})
-        elif "!F" == content["type"]:
-            print(rowIndex, "overlay type > From file => ",content["file"]["name"])
-            #save the extended data
-            textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value), 
-                                    "text": None,
-                                    "file": content["file"], 
-                                    "param": paramData,
-                                    "preProcess": preprocess})
+        elif "File" == content["Type"]:
+            print(rowIndex, "overlay type > From file => ", content["File"])
         else:
             print(rowIndex, "Error: undefined overlay type : ", content["type"])
             break
     # Data store is done. return
     print("- Fn: loadTemplateData")
     return textOverlayList
-
-def validateContent(content):
-    data = re.findall(r'<(.*?)>',content)
-    content = {"type": data[TEMP_DATA_TYPE]}
-    content["string"] = data[TEMP_DATA_IMD_TEXT]
-    if(len(data)> 2):
-        fileData = {}
-        content["file"] = fileData
-        fileData["name"] = data[TEMP_DATA_FILE_NAME]
-        fileData["sheet"] = data[TEMP_DATA_FILE_SHEET]
-        fileData["primeryKey"] = data[TEMP_DATA_FILE_COL_KEY]
-        fileData["value"] = data[TEMP_DATA_FILE_COL_DATA]
-    return content
-
-def validatePreProc(paramString):
-    preProc = []
-    # Regular expression to match function calls of the format FuncName(Var1,Var2,...)
-    pattern = r"(\w+)\((.*?)\)"
-    # Find all matches in the input string
-    matches = re.findall(pattern, paramString) 
-    if len(matches) == 0:
-        print("[validatePreProc] no pre - process list.")
-        return None
-    # Iterate over each match and build the dictionary
-    for func, params in matches:
-        # Split the parameters by comma, remove whitespace, and filter out empty strings
-        param_list = [param.strip() for param in params.split(',') if param.strip()]        
-        # Append the dictionary to the preprocess list
-        preProc.append({
-            "func": func,
-            "params": param_list
-        })
-    return preProc
 
 def validateParams(paramString):
     """ Get the param data from the file and break it down to param list.
@@ -186,17 +148,9 @@ def validateParams(paramString):
     # Iterate over each match and add it to the dictionary
     for key, value in matches:
         # Try to convert value to int or float, if applicable
-        try:
-            # Convert to float if the value has a decimal point
-            if '.' in value:
-                params[key] = float(value)
-            # Otherwise, try converting to an int
-            elif value.isdigit():
-                params[key] = int(value)
-            else:
-                params[key] = value
-        except ValueError:
-            params[key] = value  # Keep the original string if conversion fails
+        value = extractValueFromString(value)
+        value = convertFunctionString(value)
+        params[key] = value  # Keep the original string if conversion fails
     return params
 
 
@@ -210,10 +164,9 @@ def getFilesFromOverlayList(textOverlayList):
     fileNameList = []
     #go through each overlay
     for textOverlay in textOverlayList:
-        if "file" in textOverlay:
+        if "File" == textOverlay["content"]["Type"]:
             # there is a file attribute
-            filedata = textOverlay["file"]
-            filename = filedata["name"]
+            filename = textOverlay["content"]["File"]
             print("Fould a file ", filename)
             #check if this file is already in the list
             if filename not in fileNameList:
@@ -261,3 +214,66 @@ def loadRecordIdList(templateFile,sheetName):
             break
         recordIdList.append({"key": int(primeryKey), "identifier": str(record[REC_COL_STR_ID].value)})
     return recordIdList
+
+
+def preprocess(text,processList):
+    #{'function': {'name': 'AddSpace', 'param1': 'None'}}
+    print("+Fn preprocess Text =>[", text,"]", processList)
+    if "Function" in processList:
+        if "NumberToText" == processList["Function"]["name"]:
+            return  num2words(getNumber(text),to = 'currency')
+        elif "AddSpace" == processList["Function"]["name"]:
+            return str(text)+" "
+        else:
+            print("Error [preprocess] Unsupported Pre-process function")
+    return text
+
+def getNumber(text):
+    match = re.search(r"[\d,]+\.\d+|[\d,]+", text)    
+    if match:
+        # Remove commas and convert to float
+        number_str = match.group().replace(',', '')
+        return float(number_str)
+    else:
+        return 0
+
+def convertFunctionString(text):
+    """ extract function names from a string
+        and returns it in a dictionary varible"""
+    #check if text is a string
+    if not isinstance(text,str):
+        return text
+    # Regular expression to extract the function name and parameters
+    pattern = r"(\w+)\((.*?)\)"
+    match = re.match(pattern, text)    
+    if match:
+        # Extract the function name
+        funcName = match.group(1)
+        # Extract and split the parameters
+        params = match.group(2).split(',')        
+        # Create the dictionary
+        result = {"name": funcName}
+        for i, param in enumerate(params, start=1):
+            param = extractValueFromString(param)
+            result[f"param{i}"] = param
+        return result
+    else:
+        return text
+
+def extractValueFromString(value):
+    """ try and extract value from a string
+        This can return an int, float or a string"""
+    value = value.strip()
+    # Check if the parameter is a number (integer or float)
+    if value.isdigit():
+        # Convert to integer if it's an integer
+        value = int(value)
+    else:
+        try:
+            # Convert to float if it can be converted
+            value = float(value)
+        except ValueError:
+            # Otherwise, keep it as a string
+            value = str(value)
+    print("Fn [extractValueFromString] => ",value, type(value))
+    return value
