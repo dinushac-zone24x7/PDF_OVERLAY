@@ -12,6 +12,7 @@ from reportlab.lib.pagesizes import letter, legal, A4
 from reportlab.pdfgen.textobject import PDFTextObject 
 from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_LONG_TEXT
 from constants.pdfData import PDF_FIRST_PAGE, PDF_DEFAULT_LINE_SPACE, PDF_DEFAULT_LINE_SPACE_FACTOR, PDF_DEFAULT_FONT, PDF_DEFAULT_FONT_SIZE
+from constants.pdfData import  PDF_DPI, PDF_DPMM
 
 def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList):
     """ Create a new PDF from PdfTemplateName, with overlay text. Please note the output
@@ -29,8 +30,11 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
     #process multiline if any
     for overlay in pdfOverlayList :
         #mandatory fields
+        overlay = validateParams(overlay)
+        if (None == overlay["param"]["X"] or None == overlay["param"]["Y"]):
+            print("ERROR [- Fn addOverlayToPdf]: invalid coordinates: Bad arguments")
+            return ERROR_UNKNOWN
         print(overlay["param"]["X"], overlay["param"]["Y"], overlay["string"])
-        overlay = setOptionalParams(overlay)
         #process the text Line
         textObj = getTextObj(overlayCanvas,overlay["string"],overlay["param"])
         if not isinstance(textObj, PDFTextObject):
@@ -69,7 +73,11 @@ def addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlay
     return ERROR_SUCCESS
 
 
-def setOptionalParams(overlay):
+def validateParams(overlay):
+    """ X,Y can be from any measure. We support pix, mm and inch
+        only. Here we cconvert them all to pix to be used in PDF"""    
+    overlay["param"]["X"] = getpixelCount(overlay["param"]["X"])
+    overlay["param"]["Y"] = getpixelCount(overlay["param"]["Y"])
     """ Some of the parameters are optional in the template, but
         mandatory for the textObject. So set them to default"""
     if not "param" in overlay:
@@ -136,7 +144,7 @@ def processFunc(canvas, text, font, fontSize, function):
     if not "SrinkToFit" == function["name"]:
         print("Error: [processFunc] not a supported Function ")
         return text
-    width = int(function["param1"])
+    width = getpixelCount(function["param1"]) #input can be in mm, inch or pix
     maxLines = int(function["param2"])
     textLines = []
     # Function to get the width of the text
@@ -175,3 +183,19 @@ def processFunc(canvas, text, font, fontSize, function):
             print ("ERROR [constWidth]. The text line is too long to fit to [" + str(width) + "] pixels x [" + str(maxLines) + "] lines")
             return ERROR_LONG_TEXT
     return textLines
+
+
+def getpixelCount(measure):
+    """get measure in pixels"""
+    if isinstance(measure,int):
+        return measure
+    elif isinstance(measure,str):
+        measure.strip()
+        if measure.endswith("mm"):
+            return round(float(measure[:-2])*PDF_DPMM)
+        elif measure.endswith("in"):
+            return round(float(measure[:-2])*PDF_DPI)
+        else:
+            return None
+    else:
+        return None

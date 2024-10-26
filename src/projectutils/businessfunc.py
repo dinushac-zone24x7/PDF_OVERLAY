@@ -12,7 +12,6 @@ from num2words import num2words
 from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_NULL_STRING, ERROR_FILE_NOT_FOUND
 from constants.templatedata import REC_COL_INDEX, REC_COL_KEY, REC_COL_STR_ID
 from constants.templatedata import TEMP_COL_INDEX, TEMP_COL_NAME, TEMP_COL_CONTENT, TEMP_COL_PARAM, TEMP_COL_PRE_PROC
-from constants.templatedata import TEMP_DATA_TYPE, TEMP_DATA_FILE_NAME, TEMP_DATA_IMD_TEXT, TEMP_DATA_FILE_SHEET, TEMP_DATA_FILE_COL_KEY, TEMP_DATA_FILE_COL_DATA
 from constants.templatedata import TEMP_MIN_STR_DATA_LENGTH
 
 def getStringFromFileObject(fileName,fileOjectList,fileSheetName,primeryKey,primeryKeyCol,valueCol):
@@ -221,21 +220,45 @@ def preprocess(text,processList):
     print("+Fn preprocess Text =>[", text,"]", processList)
     if "Function" in processList:
         if "NumberToText" == processList["Function"]["name"]:
-            return  num2words(getNumber(text),to = 'currency')
+            if "Integer" == processList["Function"]["param2"]:
+                #round off to integer
+                return  num2words(getNumber(text,round),to = 'cardinal')
+            elif "Floating Point" == processList["Function"]["param2"]:
+                return  num2words(getNumber(text,float),to = 'cardinal')
+            else:
+                #default
+                return  num2words(getNumber(text,float),to = 'cardinal')
         elif "AddSpace" == processList["Function"]["name"]:
-            return str(text)+" "
+            count = getNumber(processList["Function"]["param2"],int)
+            return str(text)+ (" " * count)
+        elif "NumberToCurrency" == processList["Function"]["name"]:
+            print("[preprocess][NumberToCurrency][param2]", processList["Function"]["param2"], type(processList["Function"]["param2"]))
+            print("[preprocess][NumberToCurrency][param3]", processList["Function"]["param3"], type(processList["Function"]["param3"]))
+            return getCurrencyString(text,processList["Function"]["param2"],processList["Function"]["param3"])
         else:
             print("Error [preprocess] Unsupported Pre-process function")
     return text
 
-def getNumber(text):
-    match = re.search(r"[\d,]+\.\d+|[\d,]+", text)    
-    if match:
-        # Remove commas and convert to float
-        number_str = match.group().replace(',', '')
-        return float(number_str)
-    else:
-        return 0
+def getCurrencyString(number,currency,decimalPoints):
+    """Returns a text string with the number in currency format"""
+    number = getNumber(number,float)
+    # Format the number to the specified number of decimal places
+    number = f"{number:,.{decimalPoints}f}"   
+    # Return the currency with formatted number
+    return f"{currency} {number}"
+
+def getNumber(text, type):
+    """ getNumber extracts a numeric value from a given text string. """
+    if isinstance(text,int) or isinstance(text,float):
+        print("Fn getNumber: input is a number")
+    elif isinstance(text,str):
+        match = re.search(r"[\d,]+\.\d+|[\d,]+", str(text))    
+        if match:
+            # Remove commas and convert to float
+            text = float(match.group().replace(',', ''))
+        else:
+            text = 0
+    return type(text)
 
 def convertFunctionString(text):
     """ extract function names from a string
