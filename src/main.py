@@ -4,12 +4,12 @@ import sys
 import os
 from constants.templatedata import TEMPLATE_SHEET_NAME, TEMPLATE_FOLDER_NAME, RECORD_LIST_SHEET_NAME
 from constants.errorcodes import ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, ERROR_FILE_ENCRYPTED, ERROR_UNKNOWN, ERROR_ITEM_NOT_FOUND, ERROR_GENERAL_FAILIURE
-from constants.pdfData import PDF_FIRST_PAGE, getPdfPage
+from constants.pdfData import PDF_FIRST_PAGE, PDF_DEFAULT_FONT, PDF_DEFAULT_FONT_SIZE, PDF_DEFAULT_LINE_SPACE
 from projectutils.guifunc import WINDOW_QUIT # Import GUI constants, Window
 from projectutils.guifunc import MESSAGE_NEW, MESSAGE_ADD, MESSAGE_CLEAR # Import GUI constants Message
 from projectutils.guifunc import showStatus, getExcelFileName, getPassword, getPdfFileName  # Import GUI functions
 from projectutils.businessfunc import loadTemplateData, getFilesFromOverlayList, loadRecordIdList
-from projectutils.businessfunc import getStringFromFileObject, concatString
+from projectutils.businessfunc import getStringFromFileObject, concatString, preprocess
 from projectutils.filefunc import openExcelFile, createTempFile, removeFiles
 from projectutils.filefunc import saveSessionData, loadSessionData
 from projectutils.pdfFunc import addOverlayToPdf
@@ -77,40 +77,36 @@ def processRecord(messageHolder,FileObjectList,recordID,textOverlayList,PdfTempl
         overlayName = textOverlay["name"]
         if None == overlayName:
             print("Error - Bad overlay")
-            exit (ERROR_UNKNOWN)
-        overlayText = textOverlay["text"]
-        ovelayLocX = overlayText["x"]
-        ovelayLocY = overlayText["y"]
-        overlayString = overlayText["string"]
-        if None == overlayString:
+            return ERROR_UNKNOWN
+        if "File" == textOverlay["content"]["Type"]:
             #Not an immidiate string
-            print("Not Immidiate string")
-            fileInfo = textOverlay["file"]
-            fileName = fileInfo["name"]
-            fileSheetName = fileInfo["sheet"]
-            primeryKeyCol = fileInfo["primeryKey"]
-            valueCol = fileInfo["value"]
-            overlayString = getStringFromFileObject(fileName,FileObjectList,fileSheetName,recordID["key"],primeryKeyCol,valueCol)
-            print("Type of overlayString = str ? ",isinstance(overlayString, str))
+            print("Text from File")
+            overlayString = getStringFromFileObject(textOverlay["content"]["File"],FileObjectList,textOverlay["content"]["Sheet"],recordID["key"],textOverlay["content"]["PrimeryKey"],textOverlay["content"]["Value"])
             if not isinstance(overlayString, str):
                 # Error returned by the function
                 print("ERROR: Can not find the primery key.!")
-                return (ERROR_ITEM_NOT_FOUND)
+                return ERROR_ITEM_NOT_FOUND
         else:
             #an immidiate string
             print("Immidiate string")
+            overlayString = textOverlay["content"]["Text"]
+        #check if we have preproc
+        if not None == textOverlay["preProcess"]:
+            overlayString = preprocess(overlayString,textOverlay["preProcess"])
+        #is this a text to add to an existing line?
         if overlayName.startswith("!<CONCAT>"):
-            #concatnate
             print("* => Concatnate")
             concatString(pdfOverlayList,overlayName,overlayString)
         else:
-            print("overlayString ["+ overlayName +"] = "+ str(overlayString), ovelayLocX, ovelayLocY)
-            pdfOverlayList.append({"name":overlayName,"string":overlayString, "x": ovelayLocX, "y": ovelayLocY})
-
+            print("overlayString ["+ overlayName +"] = "+ str(overlayString))
+            pdfOverlayList.append({"name":overlayName,"string":overlayString,"param":textOverlay["param"]})
     update_message(messageHolder, MESSAGE_ADD, "Creating PDF File ",False)
-    addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList)
-    print("created PDF", outputFileName)
-    update_message(messageHolder, MESSAGE_ADD, "Done..! ",False)
+    if ERROR_SUCCESS == addOverlayToPdf(PdfTemplateName, PdfTemplatePage, outputFileName, pdfOverlayList):
+        print("created PDF", outputFileName)
+        update_message(messageHolder, MESSAGE_ADD, "Done..! ",False)
+    else:
+        print("ERRROR [processRecord] PDF file creation error.")
+        update_message(messageHolder, MESSAGE_ADD, "PDF file creation error",False)
     update_message(messageHolder, WINDOW_QUIT, None,False)  # This should close the status window
     return ERROR_SUCCESS
 
@@ -125,7 +121,7 @@ def main():
     recordIDList = loadRecordIdList(sessionData["templateFileName"],RECORD_LIST_SHEET_NAME)
     #get the overlay list
     textOverlayList = loadTemplateData(sessionData["templateFileName"],TEMPLATE_SHEET_NAME)
-    #check errors and exut
+    #check errors and exit
     if isinstance(textOverlayList,int) or  isinstance(recordIDList,int):
         print("ERROR: Check the template file")
         exit(ERROR_GENERAL_FAILIURE)
