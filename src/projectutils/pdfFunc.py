@@ -101,7 +101,7 @@ def getTextObj(canvas,text, params):
     lineSpace = getLineHeight(params["FontSize"], params["LineSpace"])
     if None == params["Function"]:
         print("[addOverlayToPdf] No extra text proccesisng")
-        textLines.append({"text": (text), "fontSize": params["FontSize"], "lineSpace": lineSpace, "set_cursor": None})
+        textLines.append({"text": str(text), "fontSize": params["FontSize"], "lineSpace": lineSpace, "set_cursor": None})
     else:
         #Breaks the text in to lines and adjust font for each line based on rules
         print("[addOverlayToPdf] Call text proccesing")
@@ -120,6 +120,7 @@ def getTextObj(canvas,text, params):
             textObj.moveCursor(textLine["set_cursor"], lineSpace)
         else:
             print("[getTextObj] not moving curser.!")
+        print (type(textLine["text"]), textLine["text"])
         textObj.textOut(textLine["text"])
     return textObj
 
@@ -154,7 +155,7 @@ def processFunc(canvas, text, font, fontSize, function):
     while True:
         # Set the font to the current size
         canvas.setFont(font, fontSize)
-        words = text.split(' ')
+        words = str(text).split(' ')
         set_cursor = None
         currentLine = ""
 
