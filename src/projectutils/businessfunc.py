@@ -214,20 +214,40 @@ def loadRecordIdList(templateFile,sheetName):
         recordIdList.append({"key": int(primeryKey), "identifier": str(record[REC_COL_STR_ID].value)})
     return recordIdList
 
+def getNumber(text, type):
+    """ getNumber extracts a numeric value from a given text string. """
+    if isinstance(text,int) or isinstance(text,float):
+        print("Fn getNumber: input is a number")
+    elif isinstance(text,str):
+        match = re.search(r"[\d,]+\.\d+|[\d,]+", str(text))    
+        if match:
+            # Remove commas and convert to float
+            text = float(match.group().replace(',', ''))
+        else:
+            text = 0
+    return type(text)
+
 
 def preprocess(text,processList):
     #{'function': {'name': 'AddSpace', 'param1': 'None'}}
+    """ Preprocess text string based on the process given"""
     print("+Fn preprocess Text =>[", text,"]", processList)
     if "Function" in processList:
         if "NumberToText" == processList["Function"]["name"]:
+            number = None
             if "Integer" == processList["Function"]["param2"]:
                 #round off to integer
-                return  num2words(getNumber(text,round),to = 'cardinal')
+                number = getNumber(text,round)
             elif "Floating Point" == processList["Function"]["param2"]:
-                return  num2words(getNumber(text,float),to = 'cardinal')
+                number = getNumber(text,float)
             else:
                 #default
-                return  num2words(getNumber(text,float),to = 'cardinal')
+                number = getNumber(text,float)
+            #convert the number to text
+            number = num2words(number,to = 'cardinal')
+            #make the first letter capital, and return as text.
+            return number.capitalize()
+        
         elif "AddSpace" == processList["Function"]["name"]:
             count = getNumber(processList["Function"]["param2"],int)
             return str(text)+ (" " * count)
@@ -246,19 +266,6 @@ def getCurrencyString(number,currency,decimalPoints):
     number = f"{number:,.{decimalPoints}f}"   
     # Return the currency with formatted number
     return f"{currency} {number}"
-
-def getNumber(text, type):
-    """ getNumber extracts a numeric value from a given text string. """
-    if isinstance(text,int) or isinstance(text,float):
-        print("Fn getNumber: input is a number")
-    elif isinstance(text,str):
-        match = re.search(r"[\d,]+\.\d+|[\d,]+", str(text))    
-        if match:
-            # Remove commas and convert to float
-            text = float(match.group().replace(',', ''))
-        else:
-            text = 0
-    return type(text)
 
 def convertFunctionString(text):
     """ extract function names from a string
