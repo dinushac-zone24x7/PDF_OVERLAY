@@ -255,6 +255,18 @@ def preprocess(text,processList):
             print("[preprocess][NumberToCurrency][param2]", processList["Function"]["param2"], type(processList["Function"]["param2"]))
             print("[preprocess][NumberToCurrency][param3]", processList["Function"]["param3"], type(processList["Function"]["param3"]))
             return getCurrencyString(text,processList["Function"]["param2"],processList["Function"]["param3"])
+        elif "changeTextCase" == processList["Function"]["name"]:
+            caseType = processList["Function"]["param2"]
+            print("[preprocess][changeTextCase][param2]", caseType, type(caseType))
+            if("lower" == caseType):
+                return text.lower()
+            elif ("UPPER" == caseType):
+                return text.upper()
+            elif ("Title" == caseType):
+                return text.title()
+            else:
+                print("unsupported Case", caseType)
+                return text
         else:
             print("Error [preprocess] Unsupported Pre-process function")
     return text
