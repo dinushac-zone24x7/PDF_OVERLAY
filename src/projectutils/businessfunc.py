@@ -8,6 +8,7 @@ import openpyxl
 import os
 import re
 from num2words import num2words
+from datetime import datetime
 
 from constants.errorcodes import ERROR_SUCCESS, ERROR_UNKNOWN, ERROR_NULL_STRING, ERROR_FILE_NOT_FOUND
 from constants.templatedata import REC_COL_INDEX, REC_COL_KEY, REC_COL_STR_ID
@@ -227,7 +228,6 @@ def getNumber(text, type):
             text = 0
     return type(text)
 
-
 def preprocess(text,processList):
     #{'function': {'name': 'AddSpace', 'param1': 'None'}}
     """ Preprocess text string based on the process given"""
@@ -251,10 +251,18 @@ def preprocess(text,processList):
         elif "AddSpace" == processList["Function"]["name"]:
             count = getNumber(processList["Function"]["param2"],int)
             return str(text)+ (" " * count)
+        elif "FormatDate" == processList["Function"]["name"]:
+            print("[preprocess][FormatDate][param2]", processList["Function"]["param2"], type(processList["Function"]["param2"]))
+            return formatDate(text,processList["Function"]["param2"])
         elif "NumberToCurrency" == processList["Function"]["name"]:
             print("[preprocess][NumberToCurrency][param2]", processList["Function"]["param2"], type(processList["Function"]["param2"]))
             print("[preprocess][NumberToCurrency][param3]", processList["Function"]["param3"], type(processList["Function"]["param3"]))
             return getCurrencyString(text,processList["Function"]["param2"],processList["Function"]["param3"])
+        elif "FormatNumber" == processList["Function"]["name"]:
+            print("[preprocess][FormatNumber][param2]", processList["Function"]["param2"], type(processList["Function"]["param2"]))
+            print("[preprocess][FormatNumber][param3]", processList["Function"]["param3"], type(processList["Function"]["param3"]))
+            print("[preprocess][FormatNumber][param4]", processList["Function"]["param4"], type(processList["Function"]["param4"]))
+            return getFormattedNumber(text,processList["Function"]["param2"],processList["Function"]["param3"],processList["Function"]["param4"])
         elif "changeTextCase" == processList["Function"]["name"]:
             caseType = processList["Function"]["param2"]
             print("[preprocess][changeTextCase][param2]", caseType, type(caseType))
@@ -271,7 +279,38 @@ def preprocess(text,processList):
             print("Error [preprocess] Unsupported Pre-process function")
     return text
 
-def getCurrencyString(number,currency,decimalPoints):
+def formatDate(date_string,format):
+    #$ print(date_string,format)
+    # check the type of input
+    if not isinstance(date_string,str): return ("Data Type Error")
+    if not isinstance(format,str): format = "%Y/%m/%d" #set to default
+    # try formats. We have added extra formats to cover data objects coming from openpyxl
+    formats = [format, "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S"]
+    parsed_date = None
+    #try each format and see if the date fits any. Load it to a date time object
+    for fmt in formats:
+        try:
+            parsed_date = datetime.strptime(date_string, fmt)
+            break
+        except ValueError:
+            continue
+    if parsed_date is None:
+        # the text can not be decoded.
+        print("No matching format found for:", date_string, "format =", format)
+        return date_string
+    # we have a valid date. Return the formatted string
+    # print(parsed_date.strftime(format))
+    return (parsed_date.strftime(format))    
+
+def getFormattedNumber(number, decimalPoints, prefix, suffix):
+    """Returns a text string with the prefix and suffix"""
+    number = getNumber(number,float)
+    # Format the number to the specified number of decimal places
+    number = f"{number:,.{decimalPoints}f}"   
+    # Return the currency with formatted number
+    return f"{prefix}{number}{suffix}"
+
+def getCurrencyString(number,decimalPoints,currency):
     """Returns a text string with the number in currency format"""
     number = getNumber(number,float)
     # Format the number to the specified number of decimal places
