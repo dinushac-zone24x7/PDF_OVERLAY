@@ -99,26 +99,26 @@ def loadTemplateData(templateFile,sheetName):
     #go through every text overlay item
     for overlays in textOverlayDataSheet.rows:
         #Get the index to a string. Empty cells will be string "None"
-        rowIndex = str(overlays[TEMP_COL_INDEX].value)
+        rowIndex = str(overlays[TEMP_COL_INDEX].value).strip() #ignore space
         # stop if we reach an empty cell
         if("None" == rowIndex):
             break
         # the index has to be always numbers, skip others
         if( not rowIndex.isdigit()):
-            print("Warning [loadTemplateData]: skip Row Index : ", rowIndex)
+            print("Warning [loadTemplateData]: skip Row Index ["+rowIndex+ "]")
             continue
-        content = str(overlays[TEMP_COL_CONTENT].value)
+        content = str(overlays[TEMP_COL_CONTENT].value).strip() #ignore space
         #user initiated end of loop.
         if("None" == content):
-            print("Warning [loadTemplateData]: User terminated at Index : ", rowIndex)
+            print("Warning [loadTemplateData]: User terminated at Index ["+rowIndex+"]")
             break
         if(not (content.startswith('<') and content.endswith('>') and len(content) > TEMP_MIN_STR_DATA_LENGTH)):
-            print("Error [loadTemplateData]: Data Error at Index : ",rowIndex)
+            print("Error [loadTemplateData]: Data Error at Index ["+rowIndex+"]")
             break
-        param = validateParams(str(overlays[TEMP_COL_PARAM].value))
-        preprocess = validateParams(str(overlays[TEMP_COL_PRE_PROC].value))
+        param = validateParams(str(overlays[TEMP_COL_PARAM].value).strip())
+        preprocess = validateParams(str(overlays[TEMP_COL_PRE_PROC].value).strip())
         content = validateParams(content)
-        textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value), 
+        textOverlayList.append({"name": str(overlays[TEMP_COL_NAME].value).strip(), 
                                 "content": content,
                                 "param": param,
                                 "preProcess": preprocess})
