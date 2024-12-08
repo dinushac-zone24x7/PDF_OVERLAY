@@ -31,7 +31,7 @@ PDF_OVERLAY supports six types of params:\
 (6) **Function** (optional, if not specified will be set to default = None)
 
 param Functions are executed when overlaying the content. Supported functions are below.\
-(1) **SrinkToFit(width ,maxLines)**
+(1) **SrinkToFit(width, maxLines, indent)** width, indent takes pix, mm, and inch inputs. maxLines is an integer. 
 
 PDF_OVERLAY supports three types of text preprocessors:\
 (1) **AddSpace(text,spaceCount)**\
