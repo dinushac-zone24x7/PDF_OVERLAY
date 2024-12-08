@@ -137,33 +137,50 @@ def getLineHeight(fontSize, lineSpace):
         return float(lineSpace[:-1]) * fontSize
     else:
         return fontSize * PDF_DEFAULT_LINE_SPACE_FACTOR
+
         
 def processFunc(canvas, text, font, fontSize, function):
-    """ Function to alter the text  """
+    """ Function to alter the text, and return multi lines to process """
     if "SrinkToFit" == function["name"]:
-        width = getpixelCount(function["param1"]) #input can be in mm, inch or pix
-        maxLines = int(function["param2"])
-        textLines = []
-        # Function to get the width of the text
+        global cursorPosition # Declare global
+        cursorPosition = 0 # initiate Absolute Cursor Position
+        # internal Function to get the width of the text
         def getTextWidth(text, fontSize):
             return canvas.stringWidth(text, font, fontSize)
-            # Try reducing font size until the text fits
+        #main code starts here.
+        def getCursorMove(newPosition):
+            global cursorPosition #Access global
+            cursorMove = newPosition - cursorPosition
+            cursorPosition = newPosition # rememnber the new posision
+            return cursorMove
+        def getWidth(width,indent):
+            return width - indent
+        width = getpixelCount(function["param1"]) #input can be in mm, inch or pix
+        #set the indentation for the first line if defined
+        indent = getpixelCount(function["param3"])
+        if(None == indent):
+            #unsupported param #3
+            print("unsupported Indentation, SKIP set cursor function.")
+            indent = 0
+        maxLines = int(function["param2"])
+        textLines = []
+        words = str(text).split(' ')
+        # Try reducing font size until the text fits
         while True:
+            set_cursor = getCursorMove(indent)
             # Set the font to the current size
             canvas.setFont(font, fontSize)
-            words = str(text).split(' ')
-            set_cursor = None
+            lineWidth = getWidth(width,indent)
             currentLine = ""
-
             # Loop through words to form lines that fit within the width
             for word in words:
                 testLine = currentLine + (" " + word if currentLine else word)
-                if getTextWidth(testLine, fontSize) <= width:
+                if getTextWidth(testLine, fontSize) <= lineWidth:
                     currentLine = testLine
                 else:
                     textLines.append({"text": (currentLine), "fontSize": fontSize, "lineSpace": None, "set_cursor": set_cursor})
-                    #we need to return cursor to 0 from next line onwards
-                    set_cursor = 0
+                    set_cursor = getCursorMove(0) # Return cursor to 0 from next line onwards
+                    lineWidth = getWidth(width,0) # reset the width
                     currentLine = word
 
             # Append the last line, regardless of how many lines have been created
@@ -179,13 +196,12 @@ def processFunc(canvas, text, font, fontSize, function):
             if fontSize < 6:  # Set a minimum font size limit
                 print ("ERROR [constWidth]. The text line is too long to fit to [" + str(width) + "] pixels x [" + str(maxLines) + "] lines")
                 return ERROR_LONG_TEXT
-        return textLines
-    elif False:
-        print("Error, should not be here. This is for other Function implementations")        
+            #end of While (true)
+        return textLines # we get here only if there is a good decode.
     else:
+        # Not a supported function
         print("Error: [processFunc] not a supported Function ")
         return text
-
 
 
 def getpixelCount(measure):
