@@ -138,52 +138,54 @@ def getLineHeight(fontSize, lineSpace):
     else:
         return fontSize * PDF_DEFAULT_LINE_SPACE_FACTOR
         
-
 def processFunc(canvas, text, font, fontSize, function):
-    """ Fuction to alter the text """
-#    paramList = parseFunctionString(paramList)
-    if not "SrinkToFit" == function["name"]:
+    """ Function to alter the text  """
+    if "SrinkToFit" == function["name"]:
+        width = getpixelCount(function["param1"]) #input can be in mm, inch or pix
+        maxLines = int(function["param2"])
+        textLines = []
+        # Function to get the width of the text
+        def getTextWidth(text, fontSize):
+            return canvas.stringWidth(text, font, fontSize)
+            # Try reducing font size until the text fits
+        while True:
+            # Set the font to the current size
+            canvas.setFont(font, fontSize)
+            words = str(text).split(' ')
+            set_cursor = None
+            currentLine = ""
+
+            # Loop through words to form lines that fit within the width
+            for word in words:
+                testLine = currentLine + (" " + word if currentLine else word)
+                if getTextWidth(testLine, fontSize) <= width:
+                    currentLine = testLine
+                else:
+                    textLines.append({"text": (currentLine), "fontSize": fontSize, "lineSpace": None, "set_cursor": set_cursor})
+                    #we need to return cursor to 0 from next line onwards
+                    set_cursor = 0
+                    currentLine = word
+
+            # Append the last line, regardless of how many lines have been created
+            if currentLine:
+                textLines.append({"text": (currentLine), "fontSize": fontSize, "lineSpace": None, "set_cursor": set_cursor})
+
+            # Check if the number of lines is less than or equal to the allowed number of lines
+            if len(textLines) <= maxLines:
+                break
+
+            # Reduce the font size if the text still doesn't fit
+            fontSize -= 1
+            if fontSize < 6:  # Set a minimum font size limit
+                print ("ERROR [constWidth]. The text line is too long to fit to [" + str(width) + "] pixels x [" + str(maxLines) + "] lines")
+                return ERROR_LONG_TEXT
+        return textLines
+    elif False:
+        print("Error, should not be here. This is for other Function implementations")        
+    else:
         print("Error: [processFunc] not a supported Function ")
         return text
-    width = getpixelCount(function["param1"]) #input can be in mm, inch or pix
-    maxLines = int(function["param2"])
-    textLines = []
-    # Function to get the width of the text
-    def getTextWidth(text, fontSize):
-        return canvas.stringWidth(text, font, fontSize)
-        # Try reducing font size until the text fits
-    while True:
-        # Set the font to the current size
-        canvas.setFont(font, fontSize)
-        words = str(text).split(' ')
-        set_cursor = None
-        currentLine = ""
 
-        # Loop through words to form lines that fit within the width
-        for word in words:
-            testLine = currentLine + (" " + word if currentLine else word)
-            if getTextWidth(testLine, fontSize) <= width:
-                currentLine = testLine
-            else:
-                textLines.append({"text": (currentLine), "fontSize": fontSize, "lineSpace": None, "set_cursor": set_cursor})
-                #we need to return cursor to 0 from next line onwards
-                set_cursor = 0
-                currentLine = word
-
-        # Append the last line, regardless of how many lines have been created
-        if currentLine:
-            textLines.append({"text": (currentLine), "fontSize": fontSize, "lineSpace": None, "set_cursor": set_cursor})
-
-        # Check if the number of lines is less than or equal to the allowed number of lines
-        if len(textLines) <= maxLines:
-            break
-
-        # Reduce the font size if the text still doesn't fit
-        fontSize -= 1
-        if fontSize < 6:  # Set a minimum font size limit
-            print ("ERROR [constWidth]. The text line is too long to fit to [" + str(width) + "] pixels x [" + str(maxLines) + "] lines")
-            return ERROR_LONG_TEXT
-    return textLines
 
 
 def getpixelCount(measure):
