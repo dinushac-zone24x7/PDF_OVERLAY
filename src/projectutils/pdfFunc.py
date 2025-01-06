@@ -156,8 +156,8 @@ def processFunc(canvas, text, font, fontSize, function):
         def getWidth(width,indent):
             return width - indent
         width = getpixelCount(function["param1"]) #input can be in mm, inch or pix
-        #set the indentation for the first line if defined
-        indent = getpixelCount(function["param3"])
+        #set the indentation for the first line if defined.
+        indent = getpixelCount(function.get("param3"))
         if(None == indent):
             #unsupported param #3
             print("unsupported Indentation, SKIP set cursor function.")
@@ -193,6 +193,7 @@ def processFunc(canvas, text, font, fontSize, function):
 
             # Reduce the font size if the text still doesn't fit
             fontSize -= 1
+            textLines = []
             if fontSize < 6:  # Set a minimum font size limit
                 print ("ERROR [constWidth]. The text line is too long to fit to [" + str(width) + "] pixels x [" + str(maxLines) + "] lines")
                 return ERROR_LONG_TEXT
