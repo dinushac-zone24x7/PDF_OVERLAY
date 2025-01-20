@@ -1,5 +1,4 @@
 name: Build and Package Executable
-
     on:
       push:
         branches:
