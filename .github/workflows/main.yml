@@ -34,7 +34,9 @@ jobs:
           pip install openpyxl
           pip install git+https://github.com/nolze/msoffcrypto-tool.git
           pip install num2words
-
+          pip install PyPDF2          
+          pip install reportlab
+          
       # Step 4: Build the project into an executable
       - name: Build executable
         run: |
