@@ -33,6 +33,7 @@ jobs:
           pip install pyinstaller
           pip install openpyxl
           pip install git+https://github.com/nolze/msoffcrypto-tool.git
+          pip install num2words
 
       # Step 4: Build the project into an executable
       - name: Build executable
