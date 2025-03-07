@@ -1,0 +1,6 @@
+pyinstaller
+openpyxl
+git+https://github.com/nolze/msoffcrypto-tool.git
+num2words
+PyPDF2
+reportlab
